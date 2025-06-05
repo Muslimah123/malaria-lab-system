@@ -10,9 +10,17 @@
 
 # app = create_app()
 
+# from flask import Flask
+
+# app = Flask(__name__)
+
+# from app.routes import init_routes # Import routes after initializing Flask
+# init_routes(app)
+
 from flask import Flask
+from app.routes import init_routes
 
-app = Flask(__name__)
-
-from app.routes import init_routes # Import routes after initializing Flask
-init_routes(app)
+def create_app():
+    app = Flask(__name__)
+    init_routes(app)
+    return app

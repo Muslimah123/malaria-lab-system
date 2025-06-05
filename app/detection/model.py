@@ -4,10 +4,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Load model once (global variable)
-model = YOLO("app/models/best_yolo_v10_50_epochs.pt")
+model = YOLO("app/models/malaria_yolov10.pt")
 # app\models\best.pt
 
-def detect_and_quantify(image_path, confidence_threshold=0.5):
+def detect_and_quantify(image_path, confidence_threshold=0.3):
     """Detect parasites and WBCs in a single image."""
     try:
         results = model(image_path)
