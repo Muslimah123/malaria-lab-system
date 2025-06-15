@@ -1,12 +1,22 @@
 # Malaria Diagnosis API
 
-This is a Flask-based RESTful API designed to detect malaria parasites in blood slide images using a pre-trained YOLO model. The API processes uploaded images, identifies parasites (e.g., *Plasmodium Ovale*, *Plasmodium Falciparum*, *Plasmodium Malariae*), and white blood cells (WBCs), and generates a detailed report indicating the patient’s malaria status.
+This is a **Flask-based REST API** designed to **detect malaria parasites in blood slide images** using a **pre-trained YOLOv10 model**. The API parses uploaded images, identifies parasites (such as Plasmodium Ovale, Plasmodium Falciparum, Plasmodium Malariae) and White Blood Cells (WBCs), and generates a detailed report indicating the patient’s malaria status.
 
-## Features
-- **Image Processing**: Accepts multiple image uploads for analysis.
-- **Parasite Detection**: Identifies malaria parasite types with confidence scores and bounding box coordinates.
-- **Patient Status**: Determines if the patient is positive ("POS") or negative ("NEG") for malaria.
-- **Structured Logging**: Logs processing details for monitoring and debugging.
+The application is **Dockerized** and integrates with the **ELK stack (Elasticsearch, Filebeat, Kibana)** for logging and monitoring.
+
+---
+
+## 🔹 Features
+
+- **Image Processing:** Accepts **multiple image files or file paths**.
+- **Parasite Detection:** Detects **Plasmodium Ovale, Malariae, Falciparum**, and **white blood cells**.
+- **Patient Report:** Determines **positive or negative status**, **parasite to WBC ratio**, and **confidence score**.
+- **Structured Logging:** Stores processing details in `app.log`.
+- **Dockerized Deployment:** Easily deployable with Docker Compose.
+- **ELK Integration:** Filebeat streams logs to Elasticsearch for visualization in Kibana.
+
+---
+
 
 ## Project Structure
 ```
@@ -19,13 +29,16 @@ malaria_diagnosis/
 │   │   ├── model.py      # YOLO model loading and detection logic
 │   │   └── analysis.py   # Multi-image analysis and report generation
 │   └── utils/
-│       ├── __init__.py   # Utility initialization
-│       └── logging.py    # Logging configuration
+│   |    ├── __init__.py   # Utility initialization
+│   |    └── logging.py    # Logging configuration
+|   |--- models/
+|        |--malaria_yolov10.pt
 ├── logs/                 # Directory for log files (created at runtime)
-├── models/
-│   └── best.pt           # Pre-trained YOLO model file
 ├── uploads/              # Temporary storage for uploaded images (created at runtime)
 └── requirements.txt      # Python dependencies
+└── Dockerfile            # Python dependencies
+└── docker-compose.yml            # Python dependencies
+
 ```
 
 ## Prerequisites
@@ -36,7 +49,7 @@ malaria_diagnosis/
 ### Clone the Repository:
 ```bash
 git clone <repository-url>
-cd malaria_diagnosis
+cd DiagnosisApi
 ```
 
 ### Install Dependencies:
@@ -45,11 +58,11 @@ pip install -r requirements.txt
 ```
 
 ### Ensure Model File:
-Place the pre-trained YOLO model (`best.pt`) in the `models/` directory.
+Place the pre-trained YOLO model (`malaria_yolov10.pt`) in the `models/` directory.
 
 ### Run the API:
 ```bash
-python -m app
+python run.py
 ```
 The API will start on `http://localhost:5000`.
 
@@ -58,20 +71,34 @@ The API will start on `http://localhost:5000`.
 Analyzes uploaded blood slide images for malaria parasites.
 
 #### Request
-- **Method**: `POST`
-- **Content-Type**: `multipart/form-data`
-- **Body**:
-  - `Key`: `images`
-  - `Value`: Multiple image files (e.g., .jpg, .png)
-  - **Maximum file size**: 16MB per image
+1️⃣ Open Postman Application
 
-#### Example (Using cURL)
-```bash
-curl -X POST http://localhost:5000/diagnose \
--F "images=@/path/to/po_52.jpg" \
--F "images=@/path/to/pf_8.jpg" \
--F "images=@/path/to/pm_3.jpg"
-```
+2️⃣ Click "New" > "Request"
+
+3️⃣ Name your request, e.g.: Malaria Diagnose (JSON)
+4️⃣ Set Method: POST
+5️⃣ Enter URL:http://localhost:5005/diagnose
+6️⃣ Click on "Body" tab.
+7️⃣ Select "raw".
+8️⃣ Change content format to "JSON" (you should see "JSON" in the drop-down).
+9️⃣ Paste the following sample JSON into the body editor:
+{
+  "image_paths": [
+    "/app/uploads/pm_260.jpg",
+    "/app/uploads/pm_261.jpg",
+    "/app/uploads/pm_262.jpg",
+    "/app/uploads/pm_263.jpg",
+    "/app/uploads/pm_264.jpg",
+    "/app/uploads/pm_265.jpg",
+    "/app/uploads/pm_266.jpg",
+    "/app/uploads/pm_267.jpg",
+    "/app/uploads/pm_268.jpg",
+    "/app/uploads/pm_269.jpg"
+  ]
+}
+10️⃣ Click "Send".
+
+
 
 #### Response
 - **Status Code**: `200 OK`
@@ -104,13 +131,6 @@ curl -X POST http://localhost:5000/diagnose \
   ]
 }
 ```
-
-## Error Responses
-- **400 Bad Request**: If no images are provided or files are invalid.
-```json
-{"error": "No images provided"}
-```
-
 ## Logging
 - Logs are written to `logs/app.log` with details about requests, image processing, and errors.
 - **Format**: `%(asctime)s - %(levelname)s - %(message)s`

@@ -1,0 +1,313 @@
+2025-06-14 12:27:00,565 - INFO - root - Logging configuration completed
+2025-06-14 12:27:00,646 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:27:00,647 - INFO - app - Flask application initialized successfully
+2025-06-14 12:27:05,678 - INFO - werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.69:5000
+2025-06-14 12:27:05,679 - INFO - werkzeug - [33mPress CTRL+C to quit[0m
+2025-06-14 12:27:43,520 - INFO - root - Logging configuration completed
+2025-06-14 12:27:43,581 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:27:43,582 - INFO - app - Flask application initialized successfully
+2025-06-14 12:27:48,652 - INFO - werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.69:5000
+2025-06-14 12:27:48,652 - INFO - werkzeug - [33mPress CTRL+C to quit[0m
+2025-06-14 12:27:48,659 - INFO - werkzeug -  * Restarting with stat
+2025-06-14 12:27:50,931 - INFO - root - Logging configuration completed
+2025-06-14 12:27:50,988 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:27:50,989 - INFO - app - Flask application initialized successfully
+2025-06-14 12:27:50,999 - WARNING - werkzeug -  * Debugger is active!
+2025-06-14 12:27:51,018 - INFO - werkzeug -  * Debugger PIN: 527-662-266
+2025-06-14 12:28:02,317 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 12:28:02] "[33mGET / HTTP/1.1[0m" 404 -
+2025-06-14 12:28:02,899 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 12:28:02] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-06-14 12:28:11,713 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 12:28:11] "[33mGET /dianose HTTP/1.1[0m" 404 -
+2025-06-14 12:33:05,098 - INFO - werkzeug -  * Detected change in '/Users/alaindestinkarasira/DiagnosisApi/app/routes.py', reloading
+2025-06-14 12:33:05,440 - INFO - werkzeug -  * Restarting with stat
+2025-06-14 12:33:17,460 - INFO - root - Logging configuration completed
+2025-06-14 12:33:17,537 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:33:17,538 - INFO - app - Flask application initialized successfully
+2025-06-14 12:33:17,611 - WARNING - werkzeug -  * Debugger is active!
+2025-06-14 12:33:17,634 - INFO - werkzeug -  * Debugger PIN: 527-662-266
+2025-06-14 12:33:20,684 - INFO - werkzeug -  * Detected change in '/Users/alaindestinkarasira/DiagnosisApi/app/routes.py', reloading
+2025-06-14 12:33:20,997 - INFO - werkzeug -  * Restarting with stat
+2025-06-14 12:33:23,249 - INFO - root - Logging configuration completed
+2025-06-14 12:33:23,309 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:33:23,309 - INFO - app - Flask application initialized successfully
+2025-06-14 12:33:23,319 - WARNING - werkzeug -  * Debugger is active!
+2025-06-14 12:33:23,336 - INFO - werkzeug -  * Debugger PIN: 527-662-266
+2025-06-14 12:33:26,377 - INFO - werkzeug -  * Detected change in '/Users/alaindestinkarasira/DiagnosisApi/app/routes.py', reloading
+2025-06-14 12:33:26,699 - INFO - werkzeug -  * Restarting with stat
+2025-06-14 12:33:28,753 - INFO - root - Logging configuration completed
+2025-06-14 12:33:28,820 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:33:28,821 - INFO - app - Flask application initialized successfully
+2025-06-14 12:33:28,834 - WARNING - werkzeug -  * Debugger is active!
+2025-06-14 12:33:28,852 - INFO - werkzeug -  * Debugger PIN: 527-662-266
+2025-06-14 12:33:32,901 - INFO - werkzeug -  * Detected change in '/Users/alaindestinkarasira/DiagnosisApi/app/routes.py', reloading
+2025-06-14 12:33:33,192 - INFO - werkzeug -  * Restarting with stat
+2025-06-14 12:33:55,163 - INFO - root - Logging configuration completed
+2025-06-14 12:33:55,230 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:33:55,230 - INFO - app - Flask application initialized successfully
+2025-06-14 12:34:00,256 - INFO - werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.69:5000
+2025-06-14 12:34:00,256 - INFO - werkzeug - [33mPress CTRL+C to quit[0m
+2025-06-14 12:34:00,257 - INFO - werkzeug -  * Restarting with stat
+2025-06-14 12:34:02,734 - INFO - root - Logging configuration completed
+2025-06-14 12:34:02,798 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:34:02,799 - INFO - app - Flask application initialized successfully
+2025-06-14 12:34:02,811 - WARNING - werkzeug -  * Debugger is active!
+2025-06-14 12:34:02,829 - INFO - werkzeug -  * Debugger PIN: 527-662-266
+2025-06-14 12:34:14,978 - INFO - werkzeug -  * Detected change in '/Users/alaindestinkarasira/DiagnosisApi/run.py', reloading
+2025-06-14 12:34:15,352 - INFO - werkzeug -  * Restarting with stat
+2025-06-14 12:34:17,585 - INFO - root - Logging configuration completed
+2025-06-14 12:34:17,654 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:34:17,655 - INFO - app - Flask application initialized successfully
+2025-06-14 12:34:17,666 - WARNING - werkzeug -  * Debugger is active!
+2025-06-14 12:34:17,682 - INFO - werkzeug -  * Debugger PIN: 527-662-266
+2025-06-14 12:34:29,856 - INFO - root - Logging configuration completed
+2025-06-14 12:34:29,923 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:34:29,923 - INFO - app - Flask application initialized successfully
+2025-06-14 12:34:29,938 - INFO - werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-14 12:34:29,938 - INFO - werkzeug - [33mPress CTRL+C to quit[0m
+2025-06-14 12:34:29,939 - INFO - werkzeug -  * Restarting with stat
+2025-06-14 12:34:31,739 - INFO - root - Logging configuration completed
+2025-06-14 12:34:31,795 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-14 12:34:31,796 - INFO - app - Flask application initialized successfully
+2025-06-14 12:34:31,805 - WARNING - werkzeug -  * Debugger is active!
+2025-06-14 12:34:31,821 - INFO - werkzeug -  * Debugger PIN: 527-662-266
+2025-06-14 12:34:39,366 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 12:34:39] "GET / HTTP/1.1" 200 -
+2025-06-14 13:06:56,434 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 13:06:56] "GET / HTTP/1.1" 200 -
+2025-06-14 13:06:57,184 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 13:06:57] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-06-14 13:07:11,178 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 13:07:11] "GET / HTTP/1.1" 200 -
+2025-06-14 13:07:37,559 - INFO - app.routes - Received diagnosis request with 10 image paths
+2025-06-14 13:07:37,560 - INFO - app.detection.analysis - Starting analysis for 10 images
+2025-06-14 13:07:37,560 - INFO - app.detection.analysis - Processing image 1/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - INFO - app.detection.analysis - Processing image 2/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - INFO - app.detection.analysis - Processing image 3/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - INFO - app.detection.analysis - Processing image 4/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - INFO - app.detection.analysis - Processing image 5/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - INFO - app.detection.analysis - Processing image 6/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - INFO - app.detection.analysis - Processing image 7/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - INFO - app.detection.analysis - Processing image 8/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - INFO - app.detection.analysis - Processing image 9/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - INFO - app.detection.analysis - Processing image 10/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,561 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:07:37,562 - INFO - app.detection.analysis - Analysis completed: Status=NEGATIVE, Total Parasites=0, Total WBCs=0, Ratio=0.0
+2025-06-14 13:07:37,562 - INFO - app.detection.analysis - Analysis summary: 0/10 images successfully processed
+2025-06-14 13:07:37,562 - INFO - app.routes - Diagnosis completed successfully: Status=NEGATIVE, Images processed=0
+2025-06-14 13:07:37,563 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 13:07:37] "POST /diagnose HTTP/1.1" 200 -
+2025-06-14 13:10:01,438 - INFO - app.routes - Received diagnosis request with 10 image paths
+2025-06-14 13:10:01,439 - INFO - app.detection.analysis - Starting analysis for 10 images
+2025-06-14 13:10:01,439 - INFO - app.detection.analysis - Processing image 1/10: /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:10:01,439 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:10:01,448 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_1.jpg
+2025-06-14 13:10:01,448 - INFO - app.detection.analysis - Processing image 2/10: /Users/alaindestinkarasira/Downloads/PM/pm_2.jpg
+2025-06-14 13:10:01,448 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_2.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_2.jpg
+2025-06-14 13:10:01,449 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_2.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_2.jpg
+2025-06-14 13:10:01,449 - INFO - app.detection.analysis - Processing image 3/10: /Users/alaindestinkarasira/Downloads/PM/pm_3.jpg
+2025-06-14 13:10:01,450 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_3.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_3.jpg
+2025-06-14 13:10:01,450 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_3.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_3.jpg
+2025-06-14 13:10:01,450 - INFO - app.detection.analysis - Processing image 4/10: /Users/alaindestinkarasira/Downloads/PM/pm_4.jpg
+2025-06-14 13:10:01,450 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_4.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_4.jpg
+2025-06-14 13:10:01,450 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_4.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_4.jpg
+2025-06-14 13:10:01,450 - INFO - app.detection.analysis - Processing image 5/10: /Users/alaindestinkarasira/Downloads/PM/pm_5.jpg
+2025-06-14 13:10:01,450 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_5.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_5.jpg
+2025-06-14 13:10:01,450 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_5.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_5.jpg
+2025-06-14 13:10:01,450 - INFO - app.detection.analysis - Processing image 6/10: /Users/alaindestinkarasira/Downloads/PM/pm_6.jpg
+2025-06-14 13:10:01,450 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_6.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_6.jpg
+2025-06-14 13:10:01,450 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_6.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_6.jpg
+2025-06-14 13:10:01,450 - INFO - app.detection.analysis - Processing image 7/10: /Users/alaindestinkarasira/Downloads/PM/pm_7.jpg
+2025-06-14 13:10:01,450 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_7.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_7.jpg
+2025-06-14 13:10:01,451 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_7.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_7.jpg
+2025-06-14 13:10:01,451 - INFO - app.detection.analysis - Processing image 8/10: /Users/alaindestinkarasira/Downloads/PM/pm_8.jpg
+2025-06-14 13:10:01,451 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_8.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_8.jpg
+2025-06-14 13:10:01,451 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_8.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_8.jpg
+2025-06-14 13:10:01,451 - INFO - app.detection.analysis - Processing image 9/10: /Users/alaindestinkarasira/Downloads/PM/pm_9.jpg
+2025-06-14 13:10:01,451 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_9.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_9.jpg
+2025-06-14 13:10:01,451 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_9.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_9.jpg
+2025-06-14 13:10:01,451 - INFO - app.detection.analysis - Processing image 10/10: /Users/alaindestinkarasira/Downloads/PM/pm_10.jpg
+2025-06-14 13:10:01,451 - ERROR - app.detection.model - Error processing image /Users/alaindestinkarasira/Downloads/PM/pm_10.jpg: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_10.jpg
+2025-06-14 13:10:01,451 - WARNING - app.detection.analysis - Skipping image /Users/alaindestinkarasira/Downloads/PM/pm_10.jpg due to error: Error processing image: Image not found at /Users/alaindestinkarasira/Downloads/PM/pm_10.jpg
+2025-06-14 13:10:01,451 - INFO - app.detection.analysis - Analysis completed: Status=NEGATIVE, Total Parasites=0, Total WBCs=0, Ratio=0.0
+2025-06-14 13:10:01,451 - INFO - app.detection.analysis - Analysis summary: 0/10 images successfully processed
+2025-06-14 13:10:01,451 - INFO - app.routes - Diagnosis completed successfully: Status=NEGATIVE, Images processed=0
+2025-06-14 13:10:01,452 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 13:10:01] "POST /diagnose HTTP/1.1" 200 -
+2025-06-14 13:11:49,875 - INFO - app.routes - Received diagnosis request with 10 image paths
+2025-06-14 13:11:49,876 - INFO - app.detection.analysis - Starting analysis for 10 images
+2025-06-14 13:11:49,876 - INFO - app.detection.analysis - Processing image 1/10: /Users/alaindestinkarasira/Downloads/PM/pm_260.jpg
+2025-06-14 13:11:49,878 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_260.jpg
+2025-06-14 13:11:54,684 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_260.jpg: 2 parasites, 3 WBCs, ratio: 0.6666666666666666
+2025-06-14 13:11:54,684 - INFO - app.detection.analysis - Processing image 2/10: /Users/alaindestinkarasira/Downloads/PM/pm_261.jpg
+2025-06-14 13:11:54,684 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_261.jpg
+2025-06-14 13:11:54,817 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_261.jpg: 1 parasites, 1 WBCs, ratio: 1.0
+2025-06-14 13:11:54,817 - INFO - app.detection.analysis - Processing image 3/10: /Users/alaindestinkarasira/Downloads/PM/pm_262.jpg
+2025-06-14 13:11:54,817 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_262.jpg
+2025-06-14 13:11:54,940 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_262.jpg: 1 parasites, 1 WBCs, ratio: 1.0
+2025-06-14 13:11:54,940 - INFO - app.detection.analysis - Processing image 4/10: /Users/alaindestinkarasira/Downloads/PM/pm_263.jpg
+2025-06-14 13:11:54,941 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_263.jpg
+2025-06-14 13:11:55,078 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_263.jpg: 1 parasites, 1 WBCs, ratio: 1.0
+2025-06-14 13:11:55,078 - INFO - app.detection.analysis - Processing image 5/10: /Users/alaindestinkarasira/Downloads/PM/pm_264.jpg
+2025-06-14 13:11:55,078 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_264.jpg
+2025-06-14 13:11:55,216 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_264.jpg: 4 parasites, 0 WBCs, ratio: 0.0
+2025-06-14 13:11:55,216 - INFO - app.detection.analysis - Processing image 6/10: /Users/alaindestinkarasira/Downloads/PM/pm_265.jpg
+2025-06-14 13:11:55,217 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_265.jpg
+2025-06-14 13:11:55,339 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_265.jpg: 0 parasites, 0 WBCs, ratio: 0.0
+2025-06-14 13:11:55,339 - INFO - app.detection.analysis - Processing image 7/10: /Users/alaindestinkarasira/Downloads/PM/pm_266.jpg
+2025-06-14 13:11:55,339 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_266.jpg
+2025-06-14 13:11:55,491 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_266.jpg: 2 parasites, 0 WBCs, ratio: 0.0
+2025-06-14 13:11:55,491 - INFO - app.detection.analysis - Processing image 8/10: /Users/alaindestinkarasira/Downloads/PM/pm_267.jpg
+2025-06-14 13:11:55,491 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_267.jpg
+2025-06-14 13:11:55,647 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_267.jpg: 0 parasites, 0 WBCs, ratio: 0.0
+2025-06-14 13:11:55,647 - INFO - app.detection.analysis - Processing image 9/10: /Users/alaindestinkarasira/Downloads/PM/pm_268.jpg
+2025-06-14 13:11:55,647 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_268.jpg
+2025-06-14 13:11:55,787 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_268.jpg: 1 parasites, 0 WBCs, ratio: 0.0
+2025-06-14 13:11:55,787 - INFO - app.detection.analysis - Processing image 10/10: /Users/alaindestinkarasira/Downloads/PM/pm_269.jpg
+2025-06-14 13:11:55,787 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_269.jpg
+2025-06-14 13:11:55,961 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_269.jpg: 0 parasites, 0 WBCs, ratio: 0.0
+2025-06-14 13:11:55,961 - INFO - app.detection.analysis - Analysis completed: Status=POSITIVE, Total Parasites=12, Total WBCs=6, Ratio=2.0
+2025-06-14 13:11:55,961 - INFO - app.detection.analysis - Analysis summary: 10/10 images successfully processed
+2025-06-14 13:11:55,961 - INFO - app.routes - Diagnosis completed successfully: Status=POSITIVE, Images processed=10
+2025-06-14 13:11:55,961 - INFO - werkzeug - 127.0.0.1 - - [14/Jun/2025 13:11:55] "POST /diagnose HTTP/1.1" 200 -
+2025-06-15 10:23:12,543 - INFO - root - Logging configuration completed
+2025-06-15 10:23:12,661 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-15 10:23:12,662 - INFO - app - Flask application initialized successfully
+2025-06-15 10:23:12,766 - INFO - werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-15 10:23:12,766 - INFO - werkzeug - [33mPress CTRL+C to quit[0m
+2025-06-15 10:23:12,770 - INFO - werkzeug -  * Restarting with stat
+2025-06-15 10:23:15,215 - INFO - root - Logging configuration completed
+2025-06-15 10:23:15,279 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-15 10:23:15,280 - INFO - app - Flask application initialized successfully
+2025-06-15 10:23:15,292 - WARNING - werkzeug -  * Debugger is active!
+2025-06-15 10:23:15,335 - INFO - werkzeug -  * Debugger PIN: 527-662-266
+2025-06-15 10:23:19,177 - INFO - werkzeug - 127.0.0.1 - - [15/Jun/2025 10:23:19] "GET / HTTP/1.1" 200 -
+2025-06-15 10:25:18,457 - INFO - werkzeug - 127.0.0.1 - - [15/Jun/2025 10:25:18] "[31m[1mPOST / HTTP/1.1[0m" 405 -
+2025-06-15 10:25:31,307 - INFO - werkzeug - 127.0.0.1 - - [15/Jun/2025 10:25:31] "[33mPOST /dianose HTTP/1.1[0m" 404 -
+2025-06-15 10:25:39,915 - INFO - app.routes - Received diagnosis request with 10 image paths
+2025-06-15 10:25:39,916 - INFO - app.detection.analysis - Starting analysis for 10 images
+2025-06-15 10:25:39,917 - INFO - app.detection.analysis - Processing image 1/10: /Users/alaindestinkarasira/Downloads/PM/pm_260.jpg
+2025-06-15 10:25:39,918 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_260.jpg
+2025-06-15 10:25:45,115 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_260.jpg: 2 parasites, 3 WBCs, ratio: 0.6666666666666666
+2025-06-15 10:25:45,115 - INFO - app.detection.analysis - Processing image 2/10: /Users/alaindestinkarasira/Downloads/PM/pm_261.jpg
+2025-06-15 10:25:45,116 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_261.jpg
+2025-06-15 10:25:45,244 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_261.jpg: 1 parasites, 1 WBCs, ratio: 1.0
+2025-06-15 10:25:45,244 - INFO - app.detection.analysis - Processing image 3/10: /Users/alaindestinkarasira/Downloads/PM/pm_262.jpg
+2025-06-15 10:25:45,244 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_262.jpg
+2025-06-15 10:25:45,332 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_262.jpg: 1 parasites, 1 WBCs, ratio: 1.0
+2025-06-15 10:25:45,332 - INFO - app.detection.analysis - Processing image 4/10: /Users/alaindestinkarasira/Downloads/PM/pm_263.jpg
+2025-06-15 10:25:45,332 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_263.jpg
+2025-06-15 10:25:45,419 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_263.jpg: 1 parasites, 1 WBCs, ratio: 1.0
+2025-06-15 10:25:45,419 - INFO - app.detection.analysis - Processing image 5/10: /Users/alaindestinkarasira/Downloads/PM/pm_264.jpg
+2025-06-15 10:25:45,419 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_264.jpg
+2025-06-15 10:25:45,505 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_264.jpg: 4 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 10:25:45,505 - INFO - app.detection.analysis - Processing image 6/10: /Users/alaindestinkarasira/Downloads/PM/pm_265.jpg
+2025-06-15 10:25:45,506 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_265.jpg
+2025-06-15 10:25:45,588 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_265.jpg: 0 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 10:25:45,588 - INFO - app.detection.analysis - Processing image 7/10: /Users/alaindestinkarasira/Downloads/PM/pm_266.jpg
+2025-06-15 10:25:45,588 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_266.jpg
+2025-06-15 10:25:45,698 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_266.jpg: 2 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 10:25:45,698 - INFO - app.detection.analysis - Processing image 8/10: /Users/alaindestinkarasira/Downloads/PM/pm_267.jpg
+2025-06-15 10:25:45,698 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_267.jpg
+2025-06-15 10:25:45,782 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_267.jpg: 0 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 10:25:45,782 - INFO - app.detection.analysis - Processing image 9/10: /Users/alaindestinkarasira/Downloads/PM/pm_268.jpg
+2025-06-15 10:25:45,783 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_268.jpg
+2025-06-15 10:25:45,873 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_268.jpg: 1 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 10:25:45,873 - INFO - app.detection.analysis - Processing image 10/10: /Users/alaindestinkarasira/Downloads/PM/pm_269.jpg
+2025-06-15 10:25:45,874 - INFO - app.detection.model - Starting detection for image: /Users/alaindestinkarasira/Downloads/PM/pm_269.jpg
+2025-06-15 10:25:45,957 - INFO - app.detection.model - Detection completed for /Users/alaindestinkarasira/Downloads/PM/pm_269.jpg: 0 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 10:25:45,957 - INFO - app.detection.analysis - Analysis completed: Status=POSITIVE, Total Parasites=12, Total WBCs=6, Ratio=2.0
+2025-06-15 10:25:45,957 - INFO - app.detection.analysis - Analysis summary: 10/10 images successfully processed
+2025-06-15 10:25:45,957 - INFO - app.routes - Diagnosis completed successfully: Status=POSITIVE, Images processed=10
+2025-06-15 10:25:45,957 - INFO - werkzeug - 127.0.0.1 - - [15/Jun/2025 10:25:45] "POST /diagnose HTTP/1.1" 200 -
+2025-06-15 13:03:40,443 - INFO - root - Logging configuration completed
+2025-06-15 13:03:40,793 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-15 13:03:40,795 - INFO - app - Flask application initialized successfully
+2025-06-15 13:03:40,799 - INFO - werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.24.0.5:5000
+2025-06-15 13:03:40,800 - INFO - werkzeug - [33mPress CTRL+C to quit[0m
+2025-06-15 13:11:27,862 - INFO - root - Logging configuration completed
+2025-06-15 13:11:27,999 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-15 13:11:28,000 - INFO - app - Flask application initialized successfully
+2025-06-15 13:11:28,002 - INFO - werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.24.0.5:5000
+2025-06-15 13:11:28,003 - INFO - werkzeug - [33mPress CTRL+C to quit[0m
+2025-06-15 13:11:54,559 - INFO - root - Logging configuration completed
+2025-06-15 13:11:54,676 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-15 13:11:54,677 - INFO - app - Flask application initialized successfully
+2025-06-15 13:11:54,680 - INFO - werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.24.0.5:5000
+2025-06-15 13:11:54,680 - INFO - werkzeug - [33mPress CTRL+C to quit[0m
+2025-06-15 13:12:12,317 - INFO - root - Logging configuration completed
+2025-06-15 13:12:12,429 - INFO - app.detection.model - Successfully loaded YOLO model from app/models/malaria_yolov10.pt
+2025-06-15 13:12:12,430 - INFO - app - Flask application initialized successfully
+2025-06-15 13:12:12,432 - INFO - werkzeug - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.24.0.5:5000
+2025-06-15 13:12:12,432 - INFO - werkzeug - [33mPress CTRL+C to quit[0m
+2025-06-15 13:12:15,991 - INFO - werkzeug - 192.168.65.1 - - [15/Jun/2025 13:12:15] "GET / HTTP/1.1" 200 -
+2025-06-15 13:12:24,602 - INFO - app.routes - Received diagnosis request with 10 image paths
+2025-06-15 13:12:24,604 - INFO - app.detection.analysis - Starting analysis for 10 images
+2025-06-15 13:12:24,604 - INFO - app.detection.analysis - Processing image 1/10: /app/uploads/pm_260.jpg
+2025-06-15 13:12:24,606 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_260.jpg
+2025-06-15 13:12:26,333 - INFO - app.detection.model - Detection completed for /app/uploads/pm_260.jpg: 2 parasites, 3 WBCs, ratio: 0.6666666666666666
+2025-06-15 13:12:26,334 - INFO - app.detection.analysis - Processing image 2/10: /app/uploads/pm_261.jpg
+2025-06-15 13:12:26,336 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_261.jpg
+2025-06-15 13:12:26,650 - INFO - app.detection.model - Detection completed for /app/uploads/pm_261.jpg: 1 parasites, 1 WBCs, ratio: 1.0
+2025-06-15 13:12:26,651 - INFO - app.detection.analysis - Processing image 3/10: /app/uploads/pm_262.jpg
+2025-06-15 13:12:26,652 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_262.jpg
+2025-06-15 13:12:26,958 - INFO - app.detection.model - Detection completed for /app/uploads/pm_262.jpg: 1 parasites, 1 WBCs, ratio: 1.0
+2025-06-15 13:12:26,958 - INFO - app.detection.analysis - Processing image 4/10: /app/uploads/pm_263.jpg
+2025-06-15 13:12:26,959 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_263.jpg
+2025-06-15 13:12:27,266 - INFO - app.detection.model - Detection completed for /app/uploads/pm_263.jpg: 1 parasites, 1 WBCs, ratio: 1.0
+2025-06-15 13:12:27,266 - INFO - app.detection.analysis - Processing image 5/10: /app/uploads/pm_264.jpg
+2025-06-15 13:12:27,267 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_264.jpg
+2025-06-15 13:12:27,622 - INFO - app.detection.model - Detection completed for /app/uploads/pm_264.jpg: 4 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 13:12:27,623 - INFO - app.detection.analysis - Processing image 6/10: /app/uploads/pm_265.jpg
+2025-06-15 13:12:27,624 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_265.jpg
+2025-06-15 13:12:27,973 - INFO - app.detection.model - Detection completed for /app/uploads/pm_265.jpg: 0 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 13:12:27,973 - INFO - app.detection.analysis - Processing image 7/10: /app/uploads/pm_266.jpg
+2025-06-15 13:12:27,974 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_266.jpg
+2025-06-15 13:12:28,270 - INFO - app.detection.model - Detection completed for /app/uploads/pm_266.jpg: 2 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 13:12:28,270 - INFO - app.detection.analysis - Processing image 8/10: /app/uploads/pm_267.jpg
+2025-06-15 13:12:28,271 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_267.jpg
+2025-06-15 13:12:28,574 - INFO - app.detection.model - Detection completed for /app/uploads/pm_267.jpg: 0 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 13:12:28,575 - INFO - app.detection.analysis - Processing image 9/10: /app/uploads/pm_268.jpg
+2025-06-15 13:12:28,576 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_268.jpg
+2025-06-15 13:12:28,909 - INFO - app.detection.model - Detection completed for /app/uploads/pm_268.jpg: 1 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 13:12:28,910 - INFO - app.detection.analysis - Processing image 10/10: /app/uploads/pm_269.jpg
+2025-06-15 13:12:28,910 - INFO - app.detection.model - Starting detection for image: /app/uploads/pm_269.jpg
+2025-06-15 13:12:29,206 - INFO - app.detection.model - Detection completed for /app/uploads/pm_269.jpg: 0 parasites, 0 WBCs, ratio: 0.0
+2025-06-15 13:12:29,206 - INFO - app.detection.analysis - Analysis completed: Status=POSITIVE, Total Parasites=12, Total WBCs=6, Ratio=2.0
+2025-06-15 13:12:29,206 - INFO - app.detection.analysis - Analysis summary: 10/10 images successfully processed
+2025-06-15 13:12:29,206 - INFO - app.routes - Diagnosis completed successfully: Status=POSITIVE, Images processed=10
+2025-06-15 13:12:29,207 - INFO - werkzeug - 192.168.65.1 - - [15/Jun/2025 13:12:29] "POST /diagnose HTTP/1.1" 200 -
