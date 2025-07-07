@@ -1,0 +1,20 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Environment files
+.env
+
+# System-specific files
+.DS_Store
+
+# Build artifacts
+dist
+build
+
+# Logs
+logs
+*.log
+
+# Test coverage
+coverage

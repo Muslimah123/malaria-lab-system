@@ -510,7 +510,7 @@ module.exports = {
   apiKeyAuth,
   userRateLimit,
   validateSession,
-  // Convenience methods
+ // other Convenience methods
   requireAdmin,
   requireSupervisor,
   canUploadSamples,

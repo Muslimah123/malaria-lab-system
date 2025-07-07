@@ -3,8 +3,7 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const testController = require('../controllers/testController');
 const { validateRequest } = require('../middleware/validation');
-const { auth } = require('../middleware/auth');
-const authController = require('../controllers/authController');
+const { auth, requireAdmin, requireSupervisor,requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -168,6 +167,185 @@ const testQueryValidation = [
 
 /**
  * @swagger
+ * /api/tests/statistics:
+ *   get:
+ *     summary: Get test statistics
+ *     tags: [Tests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: technicianId
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Test statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalTests:
+ *                       type: integer
+ *                     pendingTests:
+ *                       type: integer
+ *                     processingTests:
+ *                       type: integer
+ *                     completedTests:
+ *                       type: integer
+ *                     failedTests:
+ *                       type: integer
+ *                     avgProcessingTime:
+ *                       type: number
+ */
+router.get('/statistics',
+  requireSupervisor,
+  query('startDate').optional().isISO8601(),
+  query('endDate').optional().isISO8601(),
+  query('technicianId').optional().isString(),
+  validateRequest,
+  testController.getTestStatistics
+);
+
+/**
+ * @swagger
+ * /api/tests/pending:
+ *   get:
+ *     summary: Get all pending tests (Supervisor/Admin only)
+ *     tags: [Tests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: priority
+ *         schema:
+ *           type: string
+ *           enum: [low, normal, high, urgent]
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Pending tests retrieved successfully
+ */
+router.get('/pending',
+  requireSupervisor,
+  query('priority').optional().isIn(['low', 'normal', 'high', 'urgent']),
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 100 }),
+  validateRequest,
+  testController.getPendingTests
+);
+
+
+
+/**
+ * @swagger
+ * /api/tests/technician/my-tests:
+ *   get:
+ *     summary: Get tests assigned to current technician
+ *     tags: [Tests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, processing, completed, failed, cancelled]
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Technician tests retrieved successfully
+ */
+router.get('/technician/my-tests',
+  query('status').optional().isIn(['pending', 'processing', 'completed', 'failed', 'cancelled']),
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 50 }),
+  validateRequest,
+  testController.getMyTests
+);
+
+/**
+ * @swagger
+ * /api/tests/patient/{patientId}:
+ *   get:
+ *     summary: Get all tests for a specific patient
+ *     tags: [Tests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Patient tests retrieved successfully
+ *       404:
+ *         description: Patient not found
+ */
+router.get('/patient/:patientId',
+  param('patientId').notEmpty().withMessage('Patient ID is required'),
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 50 }),
+  validateRequest,
+  testController.getTestsByPatient
+);
+/**
+ * @swagger
  * /api/tests:
  *   get:
  *     summary: Get all tests with filtering and pagination
@@ -288,7 +466,7 @@ router.get('/',
  *         description: Patient not found
  */
 router.post('/',
-  authController.requirePermission('canUploadSamples'),
+  requirePermission('canUploadSamples'),
   createTestValidation,
   validateRequest,
   testController.createTest
@@ -455,143 +633,8 @@ router.patch('/:testId/status',
   testController.updateTestStatus
 );
 
-/**
- * @swagger
- * /api/tests/patient/{patientId}:
- *   get:
- *     summary: Get all tests for a specific patient
- *     tags: [Tests]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: patientId
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 50
- *           default: 10
- *     responses:
- *       200:
- *         description: Patient tests retrieved successfully
- *       404:
- *         description: Patient not found
- */
-router.get('/patient/:patientId',
-  param('patientId').notEmpty().withMessage('Patient ID is required'),
-  query('page').optional().isInt({ min: 1 }),
-  query('limit').optional().isInt({ min: 1, max: 50 }),
-  validateRequest,
-  testController.getTestsByPatient
-);
 
-/**
- * @swagger
- * /api/tests/technician/my-tests:
- *   get:
- *     summary: Get tests assigned to current technician
- *     tags: [Tests]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [pending, processing, completed, failed, cancelled]
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 50
- *           default: 20
- *     responses:
- *       200:
- *         description: Technician tests retrieved successfully
- */
-router.get('/technician/my-tests',
-  query('status').optional().isIn(['pending', 'processing', 'completed', 'failed', 'cancelled']),
-  query('page').optional().isInt({ min: 1 }),
-  query('limit').optional().isInt({ min: 1, max: 50 }),
-  validateRequest,
-  testController.getMyTests
-);
 
-/**
- * @swagger
- * /api/tests/statistics:
- *   get:
- *     summary: Get test statistics
- *     tags: [Tests]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: technicianId
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Test statistics retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     totalTests:
- *                       type: integer
- *                     pendingTests:
- *                       type: integer
- *                     processingTests:
- *                       type: integer
- *                     completedTests:
- *                       type: integer
- *                     failedTests:
- *                       type: integer
- *                     avgProcessingTime:
- *                       type: number
- */
-router.get('/statistics',
-  authController.requireSupervisor,
-  query('startDate').optional().isISO8601(),
-  query('endDate').optional().isISO8601(),
-  query('technicianId').optional().isString(),
-  validateRequest,
-  testController.getTestStatistics
-);
 
 /**
  * @swagger
@@ -627,51 +670,12 @@ router.get('/statistics',
  *         description: Test or technician not found
  */
 router.patch('/:testId/assign',
-  authController.requireSupervisor,
+  requireSupervisor,
   param('testId').notEmpty().withMessage('Test ID is required'),
   body('technicianId').notEmpty().withMessage('Technician ID is required'),
   validateRequest,
   testController.assignTest
 );
 
-/**
- * @swagger
- * /api/tests/pending:
- *   get:
- *     summary: Get all pending tests (Supervisor/Admin only)
- *     tags: [Tests]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: priority
- *         schema:
- *           type: string
- *           enum: [low, normal, high, urgent]
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 20
- *     responses:
- *       200:
- *         description: Pending tests retrieved successfully
- */
-router.get('/pending',
-  authController.requireSupervisor,
-  query('priority').optional().isIn(['low', 'normal', 'high', 'urgent']),
-  query('page').optional().isInt({ min: 1 }),
-  query('limit').optional().isInt({ min: 1, max: 100 }),
-  validateRequest,
-  testController.getPendingTests
-);
 
 module.exports = router;

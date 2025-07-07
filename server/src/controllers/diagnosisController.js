@@ -10,6 +10,12 @@ const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorTypes');
 const { socketService } = require('../socket');
 
+// const pdfPath = await reportService.generatePDFReport(diagnosisResult);
+// res.download(pdfPath);
+
+// const { getIO } = require('../config/socket');
+// getIO().to(testId).emit('diagnosisComplete', { testId, result: diagnosisResult });
+
 class DiagnosisController {
   /**
    * Get all diagnosis results with filtering
@@ -955,6 +961,59 @@ class DiagnosisController {
         }
       }
     ]);
+  }
+  /**
+   * Run malaria diagnosis for uploaded images
+   */
+  async runDiagnosis(req, res, next) {
+    const { testId } = req.params;
+
+    try {
+      // Find the test
+      const test = await Test.findOne({ testId });
+      if (!test) {
+        throw new AppError(`Test with ID ${testId} not found`, 404);
+      }
+
+      // Find uploaded image paths
+      const uploadSession = await FileService.getUploadSessionForTest(test._id);
+      if (!uploadSession || !uploadSession.files || uploadSession.files.length === 0) {
+        throw new AppError('No uploaded images found for this test', 400);
+      }
+
+      const imagePaths = uploadSession.files.map(file => file.path);
+
+      // Call the Flask diagnosis API
+      const diagnosisResult = await diagnosisService.analyzeSample(imagePaths);
+
+      // Save the diagnosis result
+      const newDiagnosisResult = new DiagnosisResult({
+        testId: test.testId,
+        patientId: test.patientId,
+        status: diagnosisResult.status,
+        mostProbableParasite: diagnosisResult.most_probable_parasite,
+        parasiteWbcRatio: diagnosisResult.parasite_wbc_ratio,
+        detections: diagnosisResult.detections,
+        diagnosedAt: new Date()
+      });
+
+      await newDiagnosisResult.save();
+
+      // Update the test status
+      test.status = 'completed';
+      await test.save();
+
+      // Optionally: emit a socket event to notify the frontend
+      // socketService.notifyDiagnosisCompleted(test.testId, newDiagnosisResult);
+
+      res.status(200).json({
+        success: true,
+        message: 'Diagnosis completed successfully',
+        data: newDiagnosisResult
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 }
 

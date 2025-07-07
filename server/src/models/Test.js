@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const testSchema = new mongoose.Schema({
   testId: {
     type: String,
-    required: true,
+    // Remove required: true since we auto-generate it
     unique: true,
     trim: true,
     uppercase: true
@@ -125,8 +125,7 @@ const testSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-testSchema.index({ testId: 1 });
-testSchema.index({ patientId: 1 });
+
 testSchema.index({ status: 1 });
 testSchema.index({ createdAt: -1 });
 testSchema.index({ technician: 1 });
@@ -138,29 +137,40 @@ testSchema.index({ patientId: 1, createdAt: -1 });
 testSchema.index({ status: 1, priority: -1 });
 testSchema.index({ technician: 1, status: 1 });
 
-// Pre-save middleware to auto-generate test ID
-testSchema.pre('save', async function(next) {
+// Pre-validate middleware to auto-generate test ID BEFORE validation
+testSchema.pre('validate', async function(next) {
   if (!this.testId) {
-    // Generate test ID: TEST-YYYYMMDD-XXX
-    const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    
-    // Find the last test created today
-    const lastTest = await this.constructor
-      .findOne({ 
-        testId: { $regex: `^TEST-${dateStr}` }
-      })
-      .sort({ testId: -1 });
-    
-    let sequence = 1;
-    if (lastTest) {
-      const lastSequence = parseInt(lastTest.testId.split('-')[2]) || 0;
-      sequence = lastSequence + 1;
+    try {
+      // Generate test ID: TEST-YYYYMMDD-XXX
+      const today = new Date();
+      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+      
+      // Find the last test created today
+      const lastTest = await this.constructor
+        .findOne({ 
+          testId: { $regex: `^TEST-${dateStr}` }
+        })
+        .sort({ testId: -1 });
+      
+      let sequence = 1;
+      if (lastTest) {
+        const lastSequence = parseInt(lastTest.testId.split('-')[2]) || 0;
+        sequence = lastSequence + 1;
+      }
+      
+      this.testId = `TEST-${dateStr}-${sequence.toString().padStart(3, '0')}`;
+    } catch (error) {
+      console.error('Error generating testId:', error);
+      // Fallback to timestamp-based ID if sequence generation fails
+      this.testId = `TEST-${Date.now()}`;
     }
-    
-    this.testId = `TEST-${dateStr}-${sequence.toString().padStart(3, '0')}`;
   }
   
+  next();
+});
+
+// Pre-save middleware for other operations
+testSchema.pre('save', function(next) {
   // Update processing time if completed
   if (this.status === 'completed' && this.processedAt && this.createdAt) {
     this.processingTime = this.processedAt.getTime() - this.createdAt.getTime();

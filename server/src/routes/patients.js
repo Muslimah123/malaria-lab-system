@@ -3,8 +3,7 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const patientController = require('../controllers/patientController');
 const { validateRequest } = require('../middleware/validation');
-const { auth } = require('../middleware/auth');
-const authController = require('../controllers/authController');
+const { auth, requireAdmin, requireSupervisor, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -76,57 +75,74 @@ router.use(auth);
  *     CreatePatientRequest:
  *       type: object
  *       properties:
- *         patientId:
- *           type: string
- *           description: "Optional - will be auto-generated if not provided"
  *         firstName:
  *           type: string
  *           maxLength: 50
+ *           example: "John"
  *         lastName:
  *           type: string
  *           maxLength: 50
+ *           example: "Doe"
  *         dateOfBirth:
  *           type: string
  *           format: date
+ *           example: "1990-01-15"
  *         gender:
  *           type: string
  *           enum: [male, female, other, unknown]
+ *           example: "male"
  *         age:
  *           type: integer
  *           minimum: 0
  *           maximum: 150
+ *           example: 35
  *         phoneNumber:
  *           type: string
+ *           example: "+1234567890"
  *         email:
  *           type: string
  *           format: email
+ *           example: "john.doe@example.com"
  *         address:
  *           type: object
+ *           properties:
+ *             street:
+ *               type: string
+ *             city:
+ *               type: string
+ *             state:
+ *               type: string
+ *             zipCode:
+ *               type: string
+ *             country:
+ *               type: string
+ *               default: "Rwanda"
  *         bloodType:
  *           type: string
  *           enum: [A+, A-, B+, B-, AB+, AB-, O+, O-, unknown]
+ *           example: "O+"
  *         allergies:
  *           type: array
  *           items:
  *             type: string
+ *           example: ["Penicillin", "Peanuts"]
  *         emergencyContact:
  *           type: object
  *           properties:
  *             name:
  *               type: string
+ *               example: "Jane Doe"
  *             relationship:
  *               type: string
+ *               example: "Spouse"
  *             phoneNumber:
  *               type: string
+ *               example: "+1234567891"
  */
 
 // Validation schemas
 const createPatientValidation = [
-  body('patientId')
-    .optional()
-    .isLength({ min: 3, max: 50 })
-    .matches(/^[A-Z0-9-_]+$/)
-    .withMessage('Patient ID must be 3-50 characters and contain only uppercase letters, numbers, hyphens, and underscores'),
+  // REMOVED patientId validation since it's always auto-generated
   body('firstName')
     .optional()
     .isLength({ max: 50 })
@@ -151,8 +167,8 @@ const createPatientValidation = [
     .withMessage('Age must be between 0 and 150'),
   body('phoneNumber')
     .optional()
-    .isMobilePhone()
-    .withMessage('Phone number must be a valid mobile number'),
+    .matches(/^[\d\s\-\+\(\)]+$/)
+    .withMessage('Phone number must be valid'),
   body('email')
     .optional()
     .isEmail()
@@ -168,7 +184,7 @@ const createPatientValidation = [
     .withMessage('Allergies must be an array'),
   body('emergencyContact.phoneNumber')
     .optional()
-    .isMobilePhone()
+    .matches(/^[\d\s\-\+\(\)]+$/)
     .withMessage('Emergency contact phone must be valid')
 ];
 
@@ -212,6 +228,154 @@ const patientQueryValidation = [
     .isIn(['asc', 'desc'])
     .withMessage('Sort order must be asc or desc')
 ];
+
+
+/**
+ * IMPORTANT: Define specific routes BEFORE parameterized routes
+ */
+
+/**
+ * @swagger
+ * /api/patients/search:
+ *   get:
+ *     summary: Search patients by various criteria
+ *     tags: [Patients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 2
+ *         description: Search query (patient ID, name, phone, email)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Search results retrieved successfully
+ */
+router.get('/search',
+  query('q')
+    .notEmpty()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Search query must be 2-100 characters'),
+  query('limit').optional().isInt({ min: 1, max: 50 }),
+  validateRequest,
+  patientController.searchPatients
+);
+
+/**
+ * @swagger
+ * /api/patients/statistics:
+ *   get:
+ *     summary: Get patient statistics (Supervisor/Admin only)
+ *     tags: [Patients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: Patient statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalPatients:
+ *                       type: integer
+ *                     patientsWithTests:
+ *                       type: integer
+ *                     patientsWithPositiveResults:
+ *                       type: integer
+ *                     averageAge:
+ *                       type: number
+ *                     genderDistribution:
+ *                       type: object
+ *                     bloodTypeDistribution:
+ *                       type: object
+ */
+router.get('/statistics',
+  requireSupervisor,
+  query('startDate').optional().isISO8601(),
+  query('endDate').optional().isISO8601(),
+  validateRequest,
+  patientController.getPatientStatistics
+);
+
+
+
+/**
+ * @swagger
+ * /api/patients/bulk-import:
+ *   post:
+ *     summary: Bulk import patients from CSV (Admin only)
+ *     tags: [Patients]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: CSV file with patient data
+ *               validateOnly:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Only validate data without importing
+ *     responses:
+ *       200:
+ *         description: Bulk import completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     imported:
+ *                       type: integer
+ *                     failed:
+ *                       type: integer
+ *                     errors:
+ *                       type: array
+ *       400:
+ *         description: Invalid CSV file
+ */
+router.post('/bulk-import',
+  requireAdmin,
+  patientController.bulkImportPatients
+);
+
 
 /**
  * @swagger
@@ -429,7 +593,7 @@ router.put('/:patientId',
  *         description: Patient not found
  */
 router.delete('/:patientId',
-  authController.requireAdmin,
+  requireAdmin,
   param('patientId').notEmpty().withMessage('Patient ID is required'),
   validateRequest,
   patientController.deletePatient
@@ -544,113 +708,7 @@ router.get('/:patientId/history',
   patientController.getPatientHistory
 );
 
-/**
- * @swagger
- * /api/patients/search:
- *   get:
- *     summary: Search patients by various criteria
- *     tags: [Patients]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: q
- *         required: true
- *         schema:
- *           type: string
- *           minLength: 2
- *         description: Search query (patient ID, name, phone, email)
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 50
- *           default: 10
- *     responses:
- *       200:
- *         description: Search results retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     patients:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Patient'
- *                     totalResults:
- *                       type: integer
- *       400:
- *         description: Invalid search query
- */
-router.get('/search',
-  query('q')
-    .notEmpty()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Search query must be 2-100 characters'),
-  query('limit').optional().isInt({ min: 1, max: 50 }),
-  validateRequest,
-  patientController.searchPatients
-);
 
-/**
- * @swagger
- * /api/patients/statistics:
- *   get:
- *     summary: Get patient statistics (Supervisor/Admin only)
- *     tags: [Patients]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *     responses:
- *       200:
- *         description: Patient statistics retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     totalPatients:
- *                       type: integer
- *                     patientsWithTests:
- *                       type: integer
- *                     patientsWithPositiveResults:
- *                       type: integer
- *                     averageAge:
- *                       type: number
- *                     genderDistribution:
- *                       type: object
- *                     bloodTypeDistribution:
- *                       type: object
- */
-router.get('/statistics',
-  authController.requireSupervisor,
-  query('startDate').optional().isISO8601(),
-  query('endDate').optional().isISO8601(),
-  validateRequest,
-  patientController.getPatientStatistics
-);
 
 /**
  * @swagger
@@ -695,7 +753,7 @@ router.get('/statistics',
  *         description: Patient not found
  */
 router.get('/:patientId/export',
-  authController.requirePermission('canExportReports'),
+  requirePermission('canExportReports'),
   param('patientId').notEmpty().withMessage('Patient ID is required'),
   query('format').optional().isIn(['pdf', 'json', 'csv']),
   query('includeTestImages').optional().isBoolean(),
@@ -703,54 +761,5 @@ router.get('/:patientId/export',
   patientController.exportPatientData
 );
 
-/**
- * @swagger
- * /api/patients/bulk-import:
- *   post:
- *     summary: Bulk import patients from CSV (Admin only)
- *     tags: [Patients]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: CSV file with patient data
- *               validateOnly:
- *                 type: boolean
- *                 default: false
- *                 description: Only validate data without importing
- *     responses:
- *       200:
- *         description: Bulk import completed successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     imported:
- *                       type: integer
- *                     failed:
- *                       type: integer
- *                     errors:
- *                       type: array
- *       400:
- *         description: Invalid CSV file
- */
-router.post('/bulk-import',
-  authController.requireAdmin,
-  patientController.bulkImportPatients
-);
 
 module.exports = router;

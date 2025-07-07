@@ -3,72 +3,10 @@ const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const { validateRequest } = require('../middleware/validation');
-const { auth } = require('../middleware/auth');
+const { auth, requireAdmin } = require('../middleware/auth');
 const rateLimit = require('../middleware/rateLimit');
 
 const router = express.Router();
-
-/**
- * @swagger
- * components:
- *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
- *   schemas:
- *     LoginRequest:
- *       type: object
- *       required:
- *         - email
- *         - password
- *       properties:
- *         email:
- *           type: string
- *           format: email
- *           example: technician@hospital.com
- *         password:
- *           type: string
- *           minLength: 6
- *           example: password123
- *     LoginResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *         message:
- *           type: string
- *         data:
- *           type: object
- *           properties:
- *             user:
- *               $ref: '#/components/schemas/User'
- *             token:
- *               type: string
- *             refreshToken:
- *               type: string
- *     User:
- *       type: object
- *       properties:
- *         _id:
- *           type: string
- *         username:
- *           type: string
- *         email:
- *           type: string
- *         firstName:
- *           type: string
- *         lastName:
- *           type: string
- *         role:
- *           type: string
- *           enum: [technician, supervisor, admin]
- *         permissions:
- *           type: object
- *         createdAt:
- *           type: string
- *           format: date-time
- */
 
 // Validation schemas
 const loginValidation = [
@@ -136,14 +74,19 @@ const changePasswordValidation = [
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/LoginRequest'
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/LoginResponse'
  *       400:
  *         description: Invalid credentials
  *       429:
@@ -198,7 +141,7 @@ router.post('/login',
  */
 router.post('/register',
   auth,
-  authController.requireAdmin,
+  requireAdmin,
   registerValidation,
   validateRequest,
   authController.register
@@ -268,7 +211,7 @@ router.post('/refresh',
  *                 success:
  *                   type: boolean
  *                 data:
- *                   $ref: '#/components/schemas/User'
+ *                   type: object
  */
 router.get('/me',
   auth,

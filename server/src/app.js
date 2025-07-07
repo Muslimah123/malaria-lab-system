@@ -7,6 +7,8 @@ const morgan = require('morgan');
 const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
+const { initSocket } = require('./config/socket');
+
 
 // Import middleware
 const { errorHandler, notFoundHandler, requestDurationLogger } = require('./middleware/errorHandler');
@@ -16,13 +18,14 @@ const logger = require('./utils/logger');
 
 // Import routes
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
+const userRoutes = require('./routes/users'); 
 const patientRoutes = require('./routes/patients');
 const testRoutes = require('./routes/tests');
 const uploadRoutes = require('./routes/upload');
 const diagnosisRoutes = require('./routes/diagnosis');
 const reportRoutes = require('./routes/reports');
 const integrationRoutes = require('./routes/integration');
+const analyticsRoutes = require('./routes/analytics');
 
 class App {
   constructor() {
@@ -103,8 +106,8 @@ class App {
     this.app.use(logger.addRequestId);
 
     // Health check endpoint (before authentication)
-    this.app.get('/health', this.healthCheck);
-    this.app.get('/api/health', this.healthCheck);
+    this.app.get('/health', this.healthCheck.bind(this));
+    this.app.get('/api/health', this.healthCheck.bind(this));
 
     // API documentation
     this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
@@ -113,7 +116,7 @@ class App {
     }));
 
     // API status endpoint
-    this.app.get('/api/status', this.getApiStatus);
+    this.app.get('/api/status', this.getApiStatus.bind(this));
   }
 
   /**
@@ -133,6 +136,7 @@ class App {
     this.app.use(`${apiPrefix}/diagnosis`, diagnosisRoutes);
     this.app.use(`${apiPrefix}/reports`, reportRoutes);
     this.app.use(`${apiPrefix}/integration`, integrationRoutes);
+    this.app.use(`${apiPrefix}/analytics`, analyticsRoutes);
 
     // Root endpoint
     this.app.get('/', (req, res) => {
@@ -158,7 +162,8 @@ class App {
           upload: '/api/upload',
           diagnosis: '/api/diagnosis',
           reports: '/api/reports',
-          integration: '/api/integration'
+          integration: '/api/integration',
+          analytics: '/api/analytics'
         },
         documentation: '/api-docs',
         version: '1.0.0'
@@ -421,4 +426,6 @@ class App {
   }
 }
 
-module.exports = App;
+const appInstance = new App();
+const app = appInstance.getInstance();
+module.exports = app;

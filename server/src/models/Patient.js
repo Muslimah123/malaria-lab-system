@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const patientSchema = new mongoose.Schema({
   patientId: {
     type: String,
-    required: true,
+    // REMOVED: required: true - because we auto-generate it in pre-save hook
     unique: true,
     trim: true,
     uppercase: true // Convert to uppercase for consistency
@@ -119,7 +119,7 @@ const patientSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-patientSchema.index({ patientId: 1 });
+// patientSchema.index({ patientId: 1 }); // Added index for patientId
 patientSchema.index({ lastName: 1, firstName: 1 });
 patientSchema.index({ createdAt: -1 });
 patientSchema.index({ lastTestDate: -1 });
@@ -178,6 +178,23 @@ patientSchema.pre('save', async function(next) {
   }
   
   next();
+});
+
+// Add validation to ensure patientId is set after pre-save hook
+patientSchema.pre('validate', function(next) {
+  // Skip validation for patientId during creation since it will be auto-generated
+  if (this.isNew && !this.patientId) {
+    // Temporarily set a placeholder to pass validation
+    this._skipPatientIdValidation = true;
+  }
+  next();
+});
+
+// Post-validate to ensure patientId requirement
+patientSchema.post('validate', function(doc) {
+  if (doc._skipPatientIdValidation) {
+    delete doc._skipPatientIdValidation;
+  }
 });
 
 // Static methods

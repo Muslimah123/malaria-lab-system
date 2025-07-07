@@ -8,10 +8,11 @@ const { AppError } = require('../utils/errorTypes');
 
 class DiagnosisService {
   constructor() {
-    this.flaskApiUrl = process.env.FLASK_API_URL || 'http://localhost:5001';
+    this.flaskApiUrl = process.env.FLASK_API_URL || 'http://flask-api:5000';
     this.apiTimeout = parseInt(process.env.FLASK_API_TIMEOUT) || 300000; // 5 minutes
     this.retryAttempts = parseInt(process.env.FLASK_API_RETRY_ATTEMPTS) || 3;
     this.retryDelay = parseInt(process.env.FLASK_API_RETRY_DELAY) || 5000; // 5 seconds
+    this.useSharedVolume = process.env.USE_SHARED_VOLUME === 'true' || true;
   }
 
   /**
@@ -31,11 +32,18 @@ class DiagnosisService {
       // Validate image files exist
       await this.validateImageFiles(imagePaths);
 
-      // Prepare form data for Flask API
-      const formData = await this.prepareFormData(imagePaths);
+      // Check Flask API health first
+      await this.checkFlaskApiHealth();
 
-      // Make API call with retry logic
-      const response = await this.callFlaskApiWithRetry(formData);
+      let response;
+      
+      if (this.useSharedVolume) {
+        // Use shared volume approach - send file paths
+        response = await this.analyzeWithPaths(imagePaths);
+      } else {
+        // Use file upload approach - send file data
+        response = await this.analyzeWithFileUpload(imagePaths);
+      }
 
       // Validate and process response
       const processedResult = await this.processFlaskResponse(response.data);
@@ -53,6 +61,62 @@ class DiagnosisService {
       
       // Wrap unexpected errors
       throw new AppError(`Diagnosis analysis failed: ${error.message}`, 500);
+    }
+  }
+
+  /**
+   * Analyze using shared volume (send paths to Flask)
+   */
+  async analyzeWithPaths(imagePaths) {
+    try {
+      // Convert local paths to shared volume paths that Flask can access
+      const sharedPaths = imagePaths.map(localPath => {
+        const relativePath = path.relative('/app/uploads', localPath);
+        return path.join('/app/shared_uploads', relativePath);
+      });
+
+      logger.info('Using shared volume approach - sending paths to Flask');
+
+      const requestData = {
+        image_paths: sharedPaths,
+        metadata: {
+          timestamp: new Date().toISOString(),
+          source: 'malaria-lab-system',
+          analysis_type: 'malaria_detection'
+        }
+      };
+
+      const response = await this.callFlaskApiWithRetry(`${this.flaskApiUrl}/diagnose`, requestData, 'json');
+      return response;
+
+    } catch (error) {
+      logger.error('Shared volume analysis failed:', error);
+      
+      // If shared volume fails, try file upload as fallback
+      if (error.response?.status === 400) {
+        logger.info('Falling back to file upload approach');
+        return await this.analyzeWithFileUpload(imagePaths);
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Analyze using file upload (send file data to Flask)
+   */
+  async analyzeWithFileUpload(imagePaths) {
+    try {
+      logger.info('Using file upload approach - sending files to Flask');
+
+      const formData = await this.prepareFormData(imagePaths);
+
+      const response = await this.callFlaskApiWithRetry(`${this.flaskApiUrl}/analyze`, formData, 'form');
+      return response;
+
+    } catch (error) {
+      logger.error('File upload analysis failed:', error);
+      throw error;
     }
   }
 
@@ -143,23 +207,33 @@ class DiagnosisService {
   /**
    * Call Flask API with retry logic
    */
-  async callFlaskApiWithRetry(formData) {
+  async callFlaskApiWithRetry(url, data, type = 'json') {
     let lastError;
 
     for (let attempt = 1; attempt <= this.retryAttempts; attempt++) {
       try {
         logger.info(`Flask API call attempt ${attempt}/${this.retryAttempts}`);
 
-        const response = await axios.post(`${this.flaskApiUrl}/analyze`, formData, {
+        let config = {
+          timeout: this.apiTimeout,
           headers: {
-            ...formData.getHeaders(),
             'X-API-Version': '1.0',
             'X-Request-Source': 'malaria-lab-system'
-          },
-          timeout: this.apiTimeout,
-          maxContentLength: 100 * 1024 * 1024, // 100MB
-          maxBodyLength: 100 * 1024 * 1024
-        });
+          }
+        };
+
+        if (type === 'form') {
+          config.headers = {
+            ...config.headers,
+            ...data.getHeaders()
+          };
+          config.maxContentLength = 100 * 1024 * 1024; // 100MB
+          config.maxBodyLength = 100 * 1024 * 1024;
+        } else {
+          config.headers['Content-Type'] = 'application/json';
+        }
+
+        const response = await axios.post(url, data, config);
 
         logger.info(`Flask API call successful on attempt ${attempt}`);
         return response;
@@ -193,6 +267,27 @@ class DiagnosisService {
   }
 
   /**
+   * Check if Flask API is healthy and reachable
+   */
+  async checkFlaskApiHealth() {
+    try {
+      const response = await axios.get(`${this.flaskApiUrl}/health`, {
+        timeout: 10000 // 10 seconds timeout for health check
+      });
+      
+      if (response.status === 200 && response.data.status === 'healthy') {
+        logger.info('Flask API health check passed');
+        return true;
+      } else {
+        throw new Error(`Flask API unhealthy: ${JSON.stringify(response.data)}`);
+      }
+    } catch (error) {
+      logger.error('Flask API health check failed:', error.message);
+      throw new Error('Flask API is not available or not responding to health checks');
+    }
+  }
+
+  /**
    * Process and validate Flask API response
    */
   async processFlaskResponse(responseData) {
@@ -206,6 +301,7 @@ class DiagnosisService {
         most_probable_parasite: responseData.most_probable_parasite || null,
         parasite_wbc_ratio: responseData.parasite_wbc_ratio || 0,
         detections: this.processDetections(responseData.detections || []),
+        overall_confidence: responseData.overall_confidence || 0,
         processing_info: {
           timestamp: new Date().toISOString(),
           api_version: responseData.api_version || '1.0',
@@ -417,4 +513,3 @@ class DiagnosisService {
 }
 
 module.exports = new DiagnosisService();
-

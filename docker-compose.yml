@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   mongodb:
     image: mongo:6.0
@@ -7,32 +6,73 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-    
+    networks:
+      - malaria-network
+
   redis:
     image: redis:7-alpine
     container_name: malaria-redis
     ports:
       - "6379:6379"
-    
+    networks:
+      - malaria-network
+
+  # Flask ML/Diagnosis API Service
+  flask-api:
+    build:
+      context: ./DiagnosisApi
+      dockerfile: ../docker/Dockerfile.flask
+    platform: linux/amd64
+    container_name: malaria-flask-api
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_PORT=5001
+    networks:
+      - malaria-network
+
   backend:
-    build: ./server
+    build:
+      context: ./server
+      dockerfile: ../docker/Dockerfile.server
+    platform: linux/amd64  
     container_name: malaria-backend
     ports:
       - "5000:5000"
     environment:
       - NODE_ENV=development
       - MONGODB_URI=mongodb://mongodb:27017/malaria_lab
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FLASK_API_URL=http://flask-api:5001  # Use service name
     depends_on:
       - mongodb
       - redis
-    
+      - flask-api
+    env_file:
+      - ./server/.env
+    networks:
+      - malaria-network
+
   frontend:
-    build: ./client
+    build:
+      context: ./client
+      dockerfile: ../docker/Dockerfile.client
+    platform: linux/amd64 
     container_name: malaria-frontend
     ports:
       - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000  # For browser requests
     depends_on:
       - backend
+    networks:
+      - malaria-network
 
 volumes:
   mongodb_data:
+
+networks:
+  malaria-network:
+    driver: bridge

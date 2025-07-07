@@ -3,8 +3,8 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const diagnosisController = require('../controllers/diagnosisController');
 const { validateRequest } = require('../middleware/validation');
-const { auth } = require('../middleware/auth');
-const authController = require('../controllers/authController');
+const { auth,requireAdmin, requireSupervisor, requirePermission } = require('../middleware/auth');
+
 
 const router = express.Router();
 
@@ -240,7 +240,7 @@ router.get('/:testId',
  *         description: Diagnosis result not found
  */
 router.post('/:testId/review',
-  authController.requireSupervisor,
+  requireSupervisor,
   param('testId').notEmpty().withMessage('Test ID is required'),
   body('reviewNotes')
     .notEmpty()
@@ -374,7 +374,7 @@ router.get('/:testId/images',
  *                       type: array
  */
 router.get('/statistics',
-  authController.requireSupervisor,
+  requireSupervisor,
   query('startDate').optional().isISO8601(),
   query('endDate').optional().isISO8601(),
   query('groupBy').optional().isIn(['day', 'week', 'month']),
@@ -409,7 +409,7 @@ router.get('/statistics',
  *         description: Results requiring review retrieved successfully
  */
 router.get('/requiring-review',
-  authController.requireSupervisor,
+  requireSupervisor,
   query('page').optional().isInt({ min: 1 }),
   query('limit').optional().isInt({ min: 1, max: 50 }),
   validateRequest,
@@ -463,7 +463,7 @@ router.get('/requiring-review',
  *         description: Positive cases retrieved successfully
  */
 router.get('/positive-cases',
-  authController.requireSupervisor,
+  requireSupervisor,
   query('severity').optional().isIn(['mild', 'moderate', 'severe']),
   query('parasiteType').optional().isIn(['PF', 'PM', 'PO', 'PV']),
   query('startDate').optional().isISO8601(),
@@ -509,7 +509,7 @@ router.get('/positive-cases',
  *         description: Diagnosis result not found
  */
 router.get('/:testId/export',
-  authController.requirePermission('canExportReports'),
+  requirePermission('canExportReports'),
   param('testId').notEmpty().withMessage('Test ID is required'),
   query('format').optional().isIn(['pdf', 'json']),
   validateRequest,
@@ -553,7 +553,7 @@ router.get('/:testId/export',
  *         description: Diagnosis result not found
  */
 router.post('/:testId/hospital-integration',
-  authController.requireAdmin,
+  requireAdmin,
   param('testId').notEmpty().withMessage('Test ID is required'),
   body('hospitalId').optional().isString(),
   body('departmentId').optional().isString(),
@@ -604,8 +604,8 @@ router.post('/:testId/hospital-integration',
  *         description: Invalid export parameters
  */
 router.post('/batch-export',
-  authController.requireSupervisor,
-  authController.requirePermission('canExportReports'),
+  requireSupervisor,
+  requirePermission('canExportReports'),
   body('testIds')
     .isArray({ min: 1, max: 100 })
     .withMessage('Test IDs must be an array with 1-100 items'),
@@ -678,5 +678,43 @@ router.post('/:testId/quality-feedback',
   validateRequest,
   diagnosisController.addQualityFeedback
 );
+
+/**
+ * @swagger
+ * /api/diagnosis/{testId}/run:
+ *   post:
+ *     summary: Run malaria diagnosis for a test
+ *     tags: [Diagnosis]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Diagnosis completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/DiagnosisResult'
+ *       404:
+ *         description: Test not found
+ */
+router.post('/:testId/run',
+  param('testId').notEmpty().withMessage('Test ID is required'),
+  validateRequest,
+  diagnosisController.runDiagnosis
+);
+
 
 module.exports = router;

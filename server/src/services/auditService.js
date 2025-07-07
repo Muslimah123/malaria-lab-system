@@ -121,6 +121,7 @@ class AuditService {
     const enriched = {
       ...logData,
       // Set defaults
+      user:logData.userId || null,
       status: logData.status || 'success',
       riskLevel: logData.riskLevel || 'low',
       source: logData.source || 'web_app',

@@ -2,7 +2,7 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const redis = require('redis');
+const { getRedisClient, connectRedis, isRedisReady } = require('../config/redis');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorTypes');
@@ -22,28 +22,23 @@ class AuthService {
    */
   async initializeRedis() {
     try {
-      this.redisClient = redis.createClient({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
-        password: process.env.REDIS_PASSWORD,
-        retryDelayOnFailover: 100,
-        maxRetriesPerRequest: 3
-      });
-
-      this.redisClient.on('error', (err) => {
-        logger.error('Redis connection error:', err);
-      });
-
-      this.redisClient.on('connect', () => {
-        logger.info('Connected to Redis');
-      });
-
-      await this.redisClient.connect();
+      // Use the centralized Redis connection
+      await connectRedis();
+      this.redisClient = getRedisClient();
+      this.useMemoryFallback = false;
+      logger.info('AuthService: Connected to Redis');
     } catch (error) {
-      logger.warn('Redis not available, using memory fallback:', error.message);
+      logger.warn('AuthService: Redis not available, using memory fallback:', error.message);
       this.useMemoryFallback = true;
       this.memoryStore = new Map();
     }
+  }
+
+  /**
+   * Check if Redis is available
+   */
+  isRedisAvailable() {
+    return !this.useMemoryFallback && isRedisReady();
   }
 
   /**
@@ -169,7 +164,7 @@ class AuthService {
       if (ttl > 0) {
         const key = `blacklist:${token}`;
         
-        if (this.useMemoryFallback) {
+        if (!this.isRedisAvailable()) {
           this.memoryStore.set(key, true);
           // Set cleanup timeout
           setTimeout(() => {
@@ -193,7 +188,7 @@ class AuthService {
     try {
       const key = `blacklist:${token}`;
       
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         return this.memoryStore.has(key);
       } else {
         const result = await this.redisClient.get(key);
@@ -214,7 +209,7 @@ class AuthService {
       const decoded = jwt.decode(refreshToken);
       const ttl = decoded.exp - Math.floor(Date.now() / 1000);
 
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         this.memoryStore.set(key, refreshToken);
         // Set cleanup timeout
         setTimeout(() => {
@@ -237,7 +232,7 @@ class AuthService {
     try {
       const key = `refresh:${userId}`;
       
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         return this.memoryStore.get(key) || null;
       } else {
         return await this.redisClient.get(key);
@@ -255,7 +250,7 @@ class AuthService {
     try {
       const key = `refresh:${userId}`;
       
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         this.memoryStore.delete(key);
       } else {
         await this.redisClient.del(key);
@@ -279,7 +274,7 @@ class AuthService {
 
       const ttl = Math.ceil((expiresAt.getTime() - Date.now()) / 1000);
 
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         this.memoryStore.set(key, data);
         // Set cleanup timeout
         setTimeout(() => {
@@ -311,7 +306,7 @@ class AuthService {
         const key = `password_reset:${user._id}`;
         let storedData;
 
-        if (this.useMemoryFallback) {
+        if (!this.isRedisAvailable()) {
           storedData = this.memoryStore.get(key);
         } else {
           const result = await this.redisClient.get(key);
@@ -344,7 +339,7 @@ class AuthService {
     try {
       const key = `password_reset:${userId}`;
       
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         this.memoryStore.delete(key);
       } else {
         await this.redisClient.del(key);
@@ -385,7 +380,7 @@ class AuthService {
 
       const ttl = 24 * 60 * 60; // 24 hours
 
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         this.memoryStore.set(key, session);
         setTimeout(() => {
           this.memoryStore.delete(key);
@@ -409,7 +404,7 @@ class AuthService {
     try {
       const key = `session:${sessionId}`;
       
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         return this.memoryStore.get(key) || null;
       } else {
         const result = await this.redisClient.get(key);
@@ -433,7 +428,7 @@ class AuthService {
         const key = `session:${sessionId}`;
         const ttl = 24 * 60 * 60; // Reset TTL
 
-        if (this.useMemoryFallback) {
+        if (!this.isRedisAvailable()) {
           this.memoryStore.set(key, session);
         } else {
           await this.redisClient.setEx(key, ttl, JSON.stringify(session));
@@ -451,7 +446,7 @@ class AuthService {
     try {
       const key = `session:${sessionId}`;
       
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         this.memoryStore.delete(key);
       } else {
         await this.redisClient.del(key);
@@ -466,16 +461,20 @@ class AuthService {
    */
   async cleanupExpiredSessions() {
     try {
-      if (!this.useMemoryFallback) {
-        // Redis handles TTL automatically, but we can run additional cleanup
-        const pattern = 'session:*';
-        const keys = await this.redisClient.keys(pattern);
-        
-        for (const key of keys) {
-          const ttl = await this.redisClient.ttl(key);
-          if (ttl <= 0) {
-            await this.redisClient.del(key);
-          }
+      if (!this.isRedisAvailable()) {
+        // For memory store, we handle cleanup via setTimeout
+        logger.info('Memory store cleanup handled automatically');
+        return;
+      }
+
+      // Redis handles TTL automatically, but we can run additional cleanup
+      const pattern = 'session:*';
+      const keys = await this.redisClient.keys(pattern);
+      
+      for (const key of keys) {
+        const ttl = await this.redisClient.ttl(key);
+        if (ttl <= 0) {
+          await this.redisClient.del(key);
         }
       }
       
@@ -492,7 +491,7 @@ class AuthService {
     try {
       const sessions = [];
       
-      if (this.useMemoryFallback) {
+      if (!this.isRedisAvailable()) {
         for (const [key, session] of this.memoryStore.entries()) {
           if (key.startsWith('session:') && session.userId === userId) {
             sessions.push({

@@ -83,82 +83,86 @@ class PatientController {
   }
 
   /**
-   * Create a new patient
-   */
-  async createPatient(req, res, next) {
-    try {
-      const patientData = req.body;
-      const user = req.user;
+ * Create a new patient
+ */
+async createPatient(req, res, next) {
+  try {
+    const patientData = req.body;
+    const user = req.user;
 
-      // Check if patient ID already exists (if provided)
-      if (patientData.patientId) {
-        const existingPatient = await Patient.findByPatientId(patientData.patientId);
-        if (existingPatient) {
-          return res.status(409).json({
-            success: false,
-            message: 'Patient ID already exists'
-          });
+    // Remove any manually provided patientId to ensure auto-generation
+    delete patientData.patientId;
+
+    // Create new patient
+    const patient = new Patient({
+      ...patientData,
+      createdBy: user._id
+    });
+
+    await patient.save();
+
+    // Populate created by for response
+    await patient.populate('createdBy', 'username firstName lastName');
+
+    // Log patient creation
+    await auditService.log({
+      action: 'patient_created',
+      userId: user._id,
+      userInfo: { username: user.username, email: user.email, role: user.role },
+      resourceType: 'patient',
+      resourceId: patient.patientId,
+      resourceName: patient.fullName || patient.patientId,
+      details: {
+        patientData: {
+          patientId: patient.patientId,
+          name: patient.fullName,
+          age: patient.age,
+          gender: patient.gender
         }
+      },
+      requestInfo: {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        method: 'POST',
+        endpoint: '/api/patients'
+      },
+      status: 'success',
+      riskLevel: 'low'
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Patient created successfully',
+      data: {
+        patient
       }
+    });
 
-      // Create new patient
-      const patient = new Patient({
-        ...patientData,
-        createdBy: user._id
+  } catch (error) {
+    logger.error('Create patient error:', error);
+    
+    if (error.code === 11000) {
+      // This would now only happen for other unique fields like email
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(409).json({
+        success: false,
+        message: `A patient with this ${field} already exists`
       });
-
-      await patient.save();
-
-      // Populate created by for response
-      await patient.populate('createdBy', 'username firstName lastName');
-
-      // Log patient creation
-      await auditService.log({
-        action: 'patient_created',
-        userId: user._id,
-        userInfo: { username: user.username, email: user.email, role: user.role },
-        resourceType: 'patient',
-        resourceId: patient.patientId,
-        resourceName: patient.fullName || patient.patientId,
-        details: {
-          patientData: {
-            patientId: patient.patientId,
-            name: patient.fullName,
-            age: patient.age,
-            gender: patient.gender
-          }
-        },
-        requestInfo: {
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-          method: 'POST',
-          endpoint: '/api/patients'
-        },
-        status: 'success',
-        riskLevel: 'low'
-      });
-
-      res.status(201).json({
-        success: true,
-        message: 'Patient created successfully',
-        data: {
-          patient
-        }
-      });
-
-    } catch (error) {
-      logger.error('Create patient error:', error);
-      
-      if (error.code === 11000) {
-        return res.status(409).json({
-          success: false,
-          message: 'Patient ID already exists'
-        });
-      }
-      
-      next(new AppError('Failed to create patient', 500));
     }
+
+    if (error.name === 'ValidationError') {
+      // Handle validation errors
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors
+      });
+    }
+    
+    next(new AppError('Failed to create patient', 500));
   }
+}
 
   /**
    * Get patient by ID
@@ -652,7 +656,8 @@ class PatientController {
           testHistory,
           diagnosisHistory,
           exportedAt: new Date(),
-          exportedBy: user.fullName
+          exportedBy: `${user.firstName} ${user.lastName}` || user.username // Fixed: use firstName/lastName or username
+
         }, null, 2);
         contentType = 'application/json';
         filename = `patient-${patient.patientId}.json`;
@@ -836,4 +841,12 @@ class PatientController {
   }
 }
 
-module.exports = new PatientController();
+// module.exports = new PatientController();
+const controller = new PatientController();
+
+// Auto-bind all methods to preserve 'this' context
+Object.getOwnPropertyNames(Object.getPrototypeOf(controller))
+  .filter(key => key !== 'constructor' && typeof controller[key] === 'function')
+  .forEach(key => controller[key] = controller[key].bind(controller));
+
+module.exports = controller;

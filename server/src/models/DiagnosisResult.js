@@ -1064,7 +1064,7 @@ const diagnosisResultSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-diagnosisResultSchema.index({ test: 1 });
+// diagnosisResultSchema.index({ test: 1 });
 diagnosisResultSchema.index({ testId: 1 });
 diagnosisResultSchema.index({ status: 1 });
 diagnosisResultSchema.index({ 'severity.level': 1 });
@@ -1159,6 +1159,7 @@ diagnosisResultSchema.statics.getStatistics = function(startDate, endDate) {
     }
   ]);
 };
+
 
 diagnosisResultSchema.statics.findByStatus = function(status) {
   return this.find({ status }).populate('test');

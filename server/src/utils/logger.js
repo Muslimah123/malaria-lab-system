@@ -325,8 +325,8 @@ logger.error = (message, error = null, context = {}) => {
       statusCode: error.statusCode
     };
   }
+  logger.log('error', message, logData);
 
-  winston.createLogger.prototype.error.call(logger, logData);
 };
 
 // Export logger with additional utilities

@@ -295,6 +295,15 @@ class FileService {
       return null;
     }
   }
+  /**
+ * Get the upload session for a given test
+ */
+async getUploadSessionForTest(testId) {
+  const UploadSession = require('../models/UploadSession');
+  const session = await UploadSession.findOne({ test: testId }).populate('files');
+  return session;
+}
+
 
   /**
    * Resize image for analysis

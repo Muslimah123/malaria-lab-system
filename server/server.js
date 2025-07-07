@@ -1,6 +1,7 @@
 // 📁 server/server.js
 const http = require('http');
-const App = require('./src/app');
+const app = require('./src/app'); // This is the Express app instance
+
 const { socketService } = require('./src/socket');
 const logger = require('./src/utils/logger');
 
@@ -19,7 +20,7 @@ class Server {
   constructor() {
     this.port = process.env.PORT || 5000;
     this.host = process.env.HOST || '0.0.0.0';
-    this.app = null;
+    this.app = app; // Use the imported app instance
     this.server = null;
   }
 
@@ -34,13 +35,10 @@ class Server {
         nodeEnv: process.env.NODE_ENV || 'development'
       });
 
-      // Create Express application
-      const appInstance = new App();
-      
       // Initialize the application (database, etc.)
-      await appInstance.initialize();
-      
-      this.app = appInstance.getInstance();
+      // Since app.js doesn't expose the appInstance directly, 
+      // we'll need to handle initialization differently
+      await this.initializeApp();
 
       // Create HTTP server
       this.server = http.createServer(this.app);
@@ -49,11 +47,8 @@ class Server {
       socketService.initialize(this.server);
       logger.info('Socket.io initialized');
 
-      // Setup global error handlers
-      appInstance.setupGlobalErrorHandlers(this.server);
-
       // Setup graceful shutdown handlers
-      this.setupShutdownHandlers(appInstance);
+      this.setupShutdownHandlers();
 
       // Start server
       await this.listen();
@@ -70,6 +65,34 @@ class Server {
     } catch (error) {
       logger.error('Failed to start server:', error);
       process.exit(1);
+    }
+  }
+
+  /**
+   * Initialize application dependencies
+   */
+  async initializeApp() {
+    try {
+      // Initialize database
+      const { initializeDatabase } = require('./src/config/database');
+      await initializeDatabase();
+      logger.info('Database initialized');
+
+      // Test Flask API connection
+      const diagnosisService = require('./src/services/diagnosisService');
+      const apiTest = await diagnosisService.testApiConnection();
+      if (apiTest.connection === 'successful') {
+        logger.info('Flask API connection verified');
+      } else {
+        logger.warn('Flask API connection failed:', apiTest.error);
+      }
+
+      logger.info('Application initialized successfully');
+      return true;
+
+    } catch (error) {
+      logger.error('Application initialization failed:', error);
+      throw error;
     }
   }
 
@@ -103,7 +126,7 @@ class Server {
   /**
    * Setup graceful shutdown handlers
    */
-  setupShutdownHandlers(appInstance) {
+  setupShutdownHandlers() {
     const gracefulShutdown = async (signal) => {
       logger.info(`📴 Received ${signal}. Starting graceful shutdown...`);
 
@@ -118,7 +141,7 @@ class Server {
 
           try {
             // Perform application cleanup
-            await appInstance.gracefulShutdown();
+            await this.performCleanup();
             
             logger.shutdown(signal);
             process.exit(0);
@@ -147,6 +170,36 @@ class Server {
 
     // Handle Docker stop signals
     process.on('SIGQUIT', () => gracefulShutdown('SIGQUIT'));
+  }
+
+  /**
+   * Perform cleanup tasks
+   */
+  async performCleanup() {
+    logger.info('Starting graceful shutdown...');
+    
+    try {
+      // Close database connection
+      const mongoose = require('mongoose');
+      await mongoose.connection.close();
+      logger.info('Database connection closed');
+
+      // Close socket connections
+      if (socketService.io) {
+        socketService.io.close();
+        logger.info('Socket.io server closed');
+      }
+
+      // Flush audit logs
+      const auditService = require('./src/services/auditService');
+      await auditService.flush();
+      logger.info('Audit logs flushed');
+
+      logger.info('Graceful shutdown completed');
+    } catch (error) {
+      logger.error('Error during graceful shutdown:', error);
+      throw error;
+    }
   }
 
   /**

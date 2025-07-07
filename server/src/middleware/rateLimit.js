@@ -1,30 +1,31 @@
 // 📁 server/src/middleware/rateLimit.js
 const rateLimit = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis');
-const redis = require('redis');
+const { getRedisClient, connectRedis, isRedisReady } = require('../config/redis');
 const logger = require('../utils/logger');
 
-// Initialize Redis client for rate limiting
-let redisClient;
-try {
-  redisClient = redis.createClient({
-    host: process.env.REDIS_HOST || 'localhost',
-    port: process.env.REDIS_PORT || 6379,
-    password: process.env.REDIS_PASSWORD,
-    retryDelayOnFailover: 100,
-    maxRetriesPerRequest: 3
-  });
+// Initialize Redis connection
+let redisClient = null;
+let redisInitialized = false;
 
-  redisClient.on('error', (err) => {
-    logger.warn('Redis rate limiting unavailable, using memory store:', err.message);
-  });
+const initializeRedis = async () => {
+  if (redisInitialized) return;
+  
+  try {
+    await connectRedis();
+    redisClient = getRedisClient();
+    redisInitialized = true;
+    logger.info('Redis initialized for rate limiting');
+  } catch (error) {
+    logger.warn('Redis initialization failed for rate limiting, will use memory store:', error.message);
+    redisInitialized = false;
+  }
+};
 
-  redisClient.connect().catch(() => {
-    logger.warn('Redis connection failed, rate limiting will use memory store');
-  });
-} catch (error) {
-  logger.warn('Redis initialization failed, rate limiting will use memory store:', error.message);
-}
+// Initialize Redis on module load
+initializeRedis().catch(err => {
+  logger.warn('Failed to initialize Redis for rate limiting:', err.message);
+});
 
 /**
  * Create rate limiter with Redis store (fallback to memory)
@@ -33,6 +34,7 @@ const createRateLimiter = (options) => {
   const defaultOptions = {
     legacyHeaders: false,
     standardHeaders: true,
+    standardHeaders: 'draft-6',
     handler: (req, res) => {
       logger.warn('Rate limit exceeded:', {
         ip: req.ip,
@@ -54,10 +56,14 @@ const createRateLimiter = (options) => {
   };
 
   // Use Redis store if available
-  if (redisClient && redisClient.isReady) {
+  if (redisClient && isRedisReady()) {
     defaultOptions.store = new RedisStore({
       sendCommand: (...args) => redisClient.sendCommand(args),
+      client: redisClient,
+      prefix: 'rl:',
     });
+  } else {
+    logger.debug('Using memory store for rate limiting');
   }
 
   return rateLimit({
@@ -66,6 +72,7 @@ const createRateLimiter = (options) => {
   });
 };
 
+// Rest of the file remains the same...
 /**
  * General API rate limiter
  */
@@ -317,11 +324,27 @@ const addRateLimitHeaders = (req, res, next) => {
   res.send = function(data) {
     // Add custom rate limit info headers
     if (req.rateLimit) {
-      res.set({
-        'X-RateLimit-Limit': req.rateLimit.limit,
-        'X-RateLimit-Remaining': req.rateLimit.remaining,
-        'X-RateLimit-Reset': new Date(Date.now() + req.rateLimit.msBeforeNext).toISOString()
-      });
+      try {
+        const headers = {
+          'X-RateLimit-Limit': req.rateLimit.limit,
+          'X-RateLimit-Remaining': Math.max(0, req.rateLimit.remaining),
+        };
+        
+        // Calculate reset time safely
+        if (req.rateLimit.resetTime) {
+          // resetTime is already a Date object
+          headers['X-RateLimit-Reset'] = req.rateLimit.resetTime.toISOString();
+        } else if (typeof req.rateLimit.msBeforeNext === 'number' && req.rateLimit.msBeforeNext >= 0) {
+          // Calculate from msBeforeNext
+          const resetDate = new Date(Date.now() + req.rateLimit.msBeforeNext);
+          headers['X-RateLimit-Reset'] = resetDate.toISOString();
+        }
+        
+        res.set(headers);
+      } catch (error) {
+        // Log error but don't fail the request
+        logger.debug('Failed to set rate limit headers:', error.message);
+      }
     }
     
     return originalSend.call(this, data);
@@ -357,7 +380,7 @@ const bypassRateLimit = (req, res, next) => {
  */
 const getRateLimitStats = async () => {
   try {
-    if (!redisClient || !redisClient.isReady) {
+    if (!redisClient || !isRedisReady()) {
       return { error: 'Redis not available' };
     }
 
@@ -393,7 +416,7 @@ const getRateLimitStats = async () => {
  */
 const clearUserRateLimit = async (userId) => {
   try {
-    if (!redisClient || !redisClient.isReady) {
+    if (!redisClient || !isRedisReady()) {
       throw new Error('Redis not available');
     }
 

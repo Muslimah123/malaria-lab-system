@@ -1,4 +1,5 @@
 // 📁 server/src/controllers/testController.js
+const mongoose = require('mongoose'); // Add this import
 const Test = require('../models/Test');
 const Patient = require('../models/Patient');
 const User = require('../models/User');
@@ -7,6 +8,59 @@ const auditService = require('../services/auditService');
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorTypes');
 const { socketService } = require('../socket');
+
+/**
+ * Helper function to get daily test statistics
+ */
+async function getDailyTestStats(startDate, endDate) {
+  try {
+    const matchCondition = { isActive: true };
+    
+    if (startDate || endDate) {
+      matchCondition.createdAt = {};
+      if (startDate) matchCondition.createdAt.$gte = new Date(startDate);
+      if (endDate) matchCondition.createdAt.$lte = new Date(endDate);
+    }
+
+    return await Test.aggregate([
+      { $match: matchCondition },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' }
+          },
+          totalTests: { $sum: 1 },
+          completedTests: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          pendingTests: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          processingTests: { $sum: { $cond: [{ $eq: ['$status', 'processing'] }, 1, 0] } },
+          failedTests: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } }
+        }
+      },
+      {
+        $project: {
+          date: {
+            $dateFromParts: {
+              year: '$_id.year',
+              month: '$_id.month',
+              day: '$_id.day'
+            }
+          },
+          totalTests: 1,
+          completedTests: 1,
+          pendingTests: 1,
+          processingTests: 1,
+          failedTests: 1
+        }
+      },
+      { $sort: { date: 1 } }
+    ]);
+  } catch (error) {
+    logger.error('Get daily test stats error:', error);
+    return [];
+  }
+}
 
 class TestController {
   /**
@@ -612,11 +666,25 @@ class TestController {
           if (endDate) technicianFilter.createdAt.$lte = new Date(endDate);
         }
 
-        technicianStats = await Test.getTestStats(startDate, endDate);
+        // Get technician-specific stats using the same aggregation but with technician filter
+        technicianStats = await Test.aggregate([
+          { $match: technicianFilter },
+          {
+            $group: {
+              _id: null,
+              totalTests: { $sum: 1 },
+              pendingTests: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+              processingTests: { $sum: { $cond: [{ $eq: ['$status', 'processing'] }, 1, 0] } },
+              completedTests: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+              failedTests: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
+              avgProcessingTime: { $avg: '$processingTime' }
+            }
+          }
+        ]);
       }
 
       // Get daily statistics for charts
-      const dailyStats = await this.getDailyTestStats(startDate, endDate);
+      const dailyStats = await getDailyTestStats(startDate, endDate);
 
       res.json({
         success: true,
@@ -629,7 +697,7 @@ class TestController {
             failedTests: 0,
             avgProcessingTime: 0
           },
-          technician: technicianStats,
+          technician: technicianStats?.[0] || null,
           dailyStats
         }
       });
@@ -648,6 +716,14 @@ class TestController {
       const { testId } = req.params;
       const { technicianId } = req.body;
       const supervisor = req.user;
+
+      // Validate technicianId format
+      if (!technicianId || !mongoose.Types.ObjectId.isValid(technicianId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or missing technician ID'
+        });
+      }
 
       // Find test
       const test = await Test.findOne({ testId: testId.toUpperCase(), isActive: true })
@@ -758,59 +834,6 @@ class TestController {
     } catch (error) {
       logger.error('Get pending tests error:', error);
       next(new AppError('Failed to retrieve pending tests', 500));
-    }
-  }
-
-  /**
-   * Helper method to get daily test statistics
-   */
-  async getDailyTestStats(startDate, endDate) {
-    try {
-      const matchCondition = { isActive: true };
-      
-      if (startDate || endDate) {
-        matchCondition.createdAt = {};
-        if (startDate) matchCondition.createdAt.$gte = new Date(startDate);
-        if (endDate) matchCondition.createdAt.$lte = new Date(endDate);
-      }
-
-      return await Test.aggregate([
-        { $match: matchCondition },
-        {
-          $group: {
-            _id: {
-              year: { $year: '$createdAt' },
-              month: { $month: '$createdAt' },
-              day: { $dayOfMonth: '$createdAt' }
-            },
-            totalTests: { $sum: 1 },
-            completedTests: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-            pendingTests: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-            processingTests: { $sum: { $cond: [{ $eq: ['$status', 'processing'] }, 1, 0] } },
-            failedTests: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } }
-          }
-        },
-        {
-          $project: {
-            date: {
-              $dateFromParts: {
-                year: '$_id.year',
-                month: '$_id.month',
-                day: '$_id.day'
-              }
-            },
-            totalTests: 1,
-            completedTests: 1,
-            pendingTests: 1,
-            processingTests: 1,
-            failedTests: 1
-          }
-        },
-        { $sort: { date: 1 } }
-      ]);
-    } catch (error) {
-      logger.error('Get daily test stats error:', error);
-      return [];
     }
   }
 }

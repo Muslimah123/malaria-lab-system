@@ -1,5 +1,4 @@
 // 📁 server/src/utils/errorTypes.js
-
 /**
  * Base Application Error class
  * All custom errors should extend this class

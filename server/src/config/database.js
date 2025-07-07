@@ -9,64 +9,73 @@ class DatabaseConfig {
     this.maxRetries = 5;
     this.retryDelay = 5000; // 5 seconds
   }
+   async connect() {
+  try {
+    // MongoDB connection options
+    const options = {
+      // Connection pool settings
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4,
+      
+      // Buffering settings
+      bufferCommands: false,
+      
+      // Retry settings
+      retryWrites: true,
+      retryReads: true,
+      
+      // Additional settings
+      connectTimeoutMS: 10000,
+      heartbeatFrequencyMS: 2000,
+    };
 
-  async connect() {
-    try {
-      // MongoDB connection options
-      const options = {
-        // Connection pool settings
-        maxPoolSize: 10, // Maintain up to 10 socket connections
-        serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
-        socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-        family: 4, // Use IPv4, skip trying IPv6
-        
-        // Buffering settings
-        bufferMaxEntries: 0, // Disable mongoose buffering
-        bufferCommands: false, // Disable mongoose buffering
-        
-        // Retry settings
-        retryWrites: true,
-        retryReads: true,
-        
-        // Additional settings
-        connectTimeoutMS: 10000, // Give up initial connection after 10 seconds
-        heartbeatFrequencyMS: 2000, // Check server status every 2 seconds
-      };
-
-      const mongoUri = this.getConnectionString();
-      
-      // Connect to MongoDB
-      await mongoose.connect(mongoUri, options);
-      
-      this.isConnected = true;
-      this.connectionAttempts = 0;
-      
-      logger.info('✅ Connected to MongoDB successfully');
-      logger.info(`📊 Database: ${mongoose.connection.name}`);
-      
-      // Set up connection event listeners
-      this.setupEventListeners();
-      
-      return mongoose.connection;
-      
-    } catch (error) {
-      this.connectionAttempts++;
-      logger.error(`❌ MongoDB connection failed (attempt ${this.connectionAttempts}):`, error.message);
-      
-      if (this.connectionAttempts < this.maxRetries) {
-        logger.info(`🔄 Retrying connection in ${this.retryDelay / 1000} seconds...`);
-        await this.delay(this.retryDelay);
-        return this.connect();
-      } else {
-        logger.error(`💥 Max connection attempts (${this.maxRetries}) reached. Exiting...`);
-        process.exit(1);
-      }
+    const mongoUri = this.getConnectionString();
+    
+    logger.info(`🔗 Attempting MongoDB connection to: ${mongoUri.replace(/\/\/.*@/, '//****@')}`);
+    
+    // Connect to MongoDB
+    await mongoose.connect(mongoUri, options);
+    
+    this.isConnected = true;
+    this.connectionAttempts = 0;
+    
+    logger.info('✅ Connected to MongoDB successfully');
+    logger.info(`📊 Database: ${mongoose.connection.name}`);
+    
+    // Set up connection event listeners
+    this.setupEventListeners();
+    
+    return mongoose.connection;
+    
+  } catch (error) {
+    this.connectionAttempts++;
+    
+    // Log the full error details
+    logger.error(`❌ MongoDB connection failed (attempt ${this.connectionAttempts}):`, {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      connectionString: this.getConnectionString().replace(/\/\/.*@/, '//****@'),
+      stack: error.stack
+    });
+    
+    if (this.connectionAttempts < this.maxRetries) {
+      logger.info(`🔄 Retrying connection in ${this.retryDelay / 1000} seconds...`);
+      await this.delay(this.retryDelay);
+      return this.connect();
+    } else {
+      logger.error(`💥 Max connection attempts (${this.maxRetries}) reached. Exiting...`);
+      process.exit(1);
     }
   }
+}
 
   getConnectionString() {
     const {
       MONGODB_URI,
+  
       MONGODB_HOST = 'localhost',
       MONGODB_PORT = '27017',
       MONGODB_DATABASE = 'malaria_lab',
