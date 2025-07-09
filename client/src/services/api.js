@@ -1,296 +1,361 @@
 // 📁 client/src/services/api.js
-// Updated to match your backend API structure exactly
+/**
+ * API Module for Malaria Diagnosis Lab System
+ * Handles all backend interactions with JWT auth, token refresh, and error handling
+ */
 
-class ApiService {
-  constructor() {
-    this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
-    this.token = localStorage.getItem('authToken');
-  }
+import axios from 'axios';
 
-  // Set authentication token
-  setToken(token) {
-    this.token = token;
-    if (token) {
-      localStorage.setItem('authToken', token);
-    } else {
-      localStorage.removeItem('authToken');
-    }
-  }
+// Configuration
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const TOKEN_KEY = 'authToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+const USER_KEY = 'user';
 
-  // Get authentication headers
-  getAuthHeaders() {
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
-    }
-    
-    return headers;
-  }
+// Create axios instance with base configuration
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 30000, // 30 seconds
+});
 
-  // Generic request method
-  async request(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
-    const config = {
-      headers: this.getAuthHeaders(),
-      ...options,
-    };
-
+// Token management utilities
+const tokenManager = {
+  getToken: () => localStorage.getItem(TOKEN_KEY),
+  setToken: (token) => localStorage.setItem(TOKEN_KEY, token),
+  removeToken: () => localStorage.removeItem(TOKEN_KEY),
+  
+  getRefreshToken: () => localStorage.getItem(REFRESH_TOKEN_KEY),
+  setRefreshToken: (token) => localStorage.setItem(REFRESH_TOKEN_KEY, token),
+  removeRefreshToken: () => localStorage.removeItem(REFRESH_TOKEN_KEY),
+  
+  getUser: () => {
     try {
-      const response = await fetch(url, config);
-      const data = await response.json();
-      
-      if (!response.ok) {
-        // Handle different HTTP status codes
-        if (response.status === 401) {
-          // Token expired or invalid
-          this.setToken(null);
-          window.location.href = '/login';
-          throw new Error('Authentication required');
+      const user = localStorage.getItem(USER_KEY);
+      return user ? JSON.parse(user) : null;
+    } catch {
+      return null;
+    }
+  },
+  setUser: (user) => localStorage.setItem(USER_KEY, JSON.stringify(user)),
+  removeUser: () => localStorage.removeItem(USER_KEY),
+  
+  clearAll: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  }
+};
+
+// Request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = tokenManager.getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle token refresh and errors
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Handle 401 errors (token expired or invalid)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = tokenManager.getRefreshToken();
+        if (refreshToken) {
+          const response = await api.post('/auth/refresh', { refreshToken });
+          
+          if (response.data.success && response.data.data.token) {
+            tokenManager.setToken(response.data.data.token);
+            if (response.data.data.refreshToken) {
+              tokenManager.setRefreshToken(response.data.data.refreshToken);
+            }
+            
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${response.data.data.token}`;
+            return api(originalRequest);
+          }
         }
-        
-        throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
+      } catch (refreshError) {
+        // Refresh failed, redirect to login
+        tokenManager.clearAll();
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
       }
-      
-      return data;
-    } catch (error) {
-      throw this.handleApiError(error);
     }
-  }
 
-  // Handle API errors consistently
-  handleApiError(error) {
-    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-      return new Error('Network error - please check your connection');
+    // Handle other errors
+    if (error.response?.status === 403) {
+      // Forbidden - insufficient permissions
+      console.error('Access denied:', error.response.data.message);
     }
-    
-    if (error.message) {
-      return new Error(error.message);
-    }
-    
-    return new Error('An unexpected error occurred');
-  }
 
+    if (error.response?.status === 429) {
+      // Rate limit exceeded
+      console.error('Rate limit exceeded:', error.response.data.message);
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// API Service Class
+class ApiService {
   // Auth endpoints
   auth = {
     login: async (credentials) => {
-      const response = await this.request('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(credentials)
-      });
+      const response = await api.post('/auth/login', credentials);
       
-      if (response.success && response.data.token) {
-        this.setToken(response.data.token);
-        // Also store refresh token
-        if (response.data.refreshToken) {
-          localStorage.setItem('refreshToken', response.data.refreshToken);
+      if (response.data.success && response.data.data) {
+        const { token, refreshToken, user } = response.data.data;
+        tokenManager.setToken(token);
+        if (refreshToken) {
+          tokenManager.setRefreshToken(refreshToken);
         }
+        tokenManager.setUser(user);
       }
       
-      return response;
+      return response.data;
     },
 
     register: async (userData) => {
-      return this.request('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(userData)
-      });
+      const response = await api.post('/auth/register', userData);
+      return response.data;
     },
 
     logout: async () => {
       try {
-        await this.request('/auth/logout', { method: 'POST' });
+        await api.post('/auth/logout');
       } finally {
-        // Clear local storage regardless of API response
-        this.setToken(null);
-        localStorage.removeItem('refreshToken');
+        tokenManager.clearAll();
       }
     },
 
     getCurrentUser: async () => {
-      return this.request('/auth/me');
+      const response = await api.get('/auth/me');
+      return response.data;
     },
 
     refreshToken: async () => {
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = tokenManager.getRefreshToken();
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
 
-      const response = await this.request('/auth/refresh-token', {
-        method: 'POST',
-        body: JSON.stringify({ refreshToken })
-      });
-
-      if (response.success && response.data.token) {
-        this.setToken(response.data.token);
-        if (response.data.refreshToken) {
-          localStorage.setItem('refreshToken', response.data.refreshToken);
+      const response = await api.post('/auth/refresh', { refreshToken });
+      
+      if (response.data.success && response.data.data) {
+        const { token, refreshToken: newRefreshToken } = response.data.data;
+        tokenManager.setToken(token);
+        if (newRefreshToken) {
+          tokenManager.setRefreshToken(newRefreshToken);
         }
       }
-
-      return response;
+      
+      return response.data;
     },
 
     changePassword: async (passwordData) => {
-      return this.request('/auth/change-password', {
-        method: 'PUT',
-        body: JSON.stringify(passwordData)
-      });
+      const response = await api.put('/auth/change-password', passwordData);
+      return response.data;
     },
 
     forgotPassword: async (email) => {
-      return this.request('/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email })
-      });
+      const response = await api.post('/auth/forgot-password', { email });
+      return response.data;
     },
 
-    resetPassword: async (resetData) => {
-      return this.request('/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify(resetData)
-      });
+    resetPassword: async (token, newPassword) => {
+      const response = await api.post('/auth/reset-password', { token, newPassword });
+      return response.data;
     },
 
     verifySession: async () => {
-      return this.request('/auth/verify-session');
+      const response = await api.get('/auth/verify-session');
+      return response.data;
     }
   };
 
   // User management endpoints (admin only)
   users = {
     getAll: async (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return this.request(`/users${queryString ? `?${queryString}` : ''}`);
+      const response = await api.get('/users', { params });
+      return response.data;
     },
 
     search: async (query, params = {}) => {
-      const searchParams = new URLSearchParams({ query, ...params }).toString();
-      return this.request(`/users/search?${searchParams}`);
+      const response = await api.get('/users/search', { 
+        params: { query, ...params } 
+      });
+      return response.data;
     },
 
     updateRole: async (userId, role) => {
-      return this.request(`/users/${userId}/role`, {
-        method: 'PUT',
-        body: JSON.stringify({ role })
-      });
+      const response = await api.put(`/users/${userId}/role`, { role });
+      return response.data;
     },
 
     resetPassword: async (userId, newPassword) => {
-      return this.request(`/users/${userId}/reset-password`, {
-        method: 'POST',
-        body: JSON.stringify({ newPassword })
-      });
+      const response = await api.post(`/users/${userId}/reset-password`, { newPassword });
+      return response.data;
     },
 
     delete: async (userId) => {
-      return this.request(`/users/${userId}`, {
-        method: 'DELETE'
-      });
+      const response = await api.delete(`/users/${userId}`);
+      return response.data;
     }
   };
 
-  // Patient endpoints (to be implemented when you send patient controller)
+  // Patient endpoints
   patients = {
     getAll: async (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return this.request(`/patients${queryString ? `?${queryString}` : ''}`);
+      const response = await api.get('/patients', { params });
+      return response.data;
     },
 
     getById: async (patientId) => {
-      return this.request(`/patients/${patientId}`);
-    },
-
-    getByPatientId: async (patientId) => {
-      return this.request(`/patients/patient-id/${patientId}`);
+      const response = await api.get(`/patients/${patientId}`);
+      return response.data;
     },
 
     create: async (patientData) => {
-      return this.request('/patients', {
-        method: 'POST',
-        body: JSON.stringify(patientData)
-      });
+      const response = await api.post('/patients', patientData);
+      return response.data;
     },
 
     update: async (patientId, patientData) => {
-      return this.request(`/patients/${patientId}`, {
-        method: 'PUT',
-        body: JSON.stringify(patientData)
-      });
+      const response = await api.put(`/patients/${patientId}`, patientData);
+      return response.data;
     },
 
     delete: async (patientId) => {
-      return this.request(`/patients/${patientId}`, {
-        method: 'DELETE'
-      });
+      const response = await api.delete(`/patients/${patientId}`);
+      return response.data;
     },
 
-    search: async (searchTerm) => {
-      return this.request(`/patients/search?q=${encodeURIComponent(searchTerm)}`);
+    search: async (q, limit = 10) => {
+      const response = await api.get('/patients/search', { 
+        params: { q, limit } 
+      });
+      return response.data;
+    },
+
+    getTests: async (patientId, params = {}) => {
+      const response = await api.get(`/patients/${patientId}/tests`, { params });
+      return response.data;
+    },
+
+    getHistory: async (patientId, params = {}) => {
+      const response = await api.get(`/patients/${patientId}/history`, { params });
+      return response.data;
+    },
+
+    exportData: async (patientId, format = 'pdf', includeTestImages = false) => {
+      const response = await api.get(`/patients/${patientId}/export`, {
+        params: { format, includeTestImages },
+        responseType: format === 'pdf' ? 'blob' : 'json'
+      });
+      return response.data;
+    },
+
+    getStatistics: async (params = {}) => {
+      const response = await api.get('/patients/statistics', { params });
+      return response.data;
+    },
+
+    bulkImport: async (file, validateOnly = false) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('validateOnly', validateOnly);
+      
+      const response = await api.post('/patients/bulk-import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
     }
   };
 
-  // Test endpoints (placeholder - to be updated when you send test controller)
+  // Test endpoints
   tests = {
     getAll: async (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return this.request(`/tests${queryString ? `?${queryString}` : ''}`);
+      const response = await api.get('/tests', { params });
+      return response.data;
     },
 
     getById: async (testId) => {
-      return this.request(`/tests/${testId}`);
+      const response = await api.get(`/tests/${testId}`);
+      return response.data;
     },
 
     create: async (testData) => {
-      return this.request('/tests', {
-        method: 'POST',
-        body: JSON.stringify(testData)
-      });
+      const response = await api.post('/tests', testData);
+      return response.data;
     },
 
     update: async (testId, testData) => {
-      return this.request(`/tests/${testId}`, {
-        method: 'PUT',
-        body: JSON.stringify(testData)
-      });
+      const response = await api.put(`/tests/${testId}`, testData);
+      return response.data;
     },
 
     delete: async (testId) => {
-      return this.request(`/tests/${testId}`, {
-        method: 'DELETE'
-      });
+      const response = await api.delete(`/tests/${testId}`);
+      return response.data;
     },
 
-    getResults: async (testId) => {
-      return this.request(`/tests/${testId}/results`);
+    updateStatus: async (testId, status, notes = null) => {
+      const response = await api.patch(`/tests/${testId}/status`, { status, notes });
+      return response.data;
+    },
+
+    assignTest: async (testId, technicianId) => {
+      const response = await api.patch(`/tests/${testId}/assign`, { technicianId });
+      return response.data;
+    },
+
+    getMyTests: async (params = {}) => {
+      const response = await api.get('/tests/technician/my-tests', { params });
+      return response.data;
+    },
+
+    getByPatient: async (patientId, params = {}) => {
+      const response = await api.get(`/tests/patient/${patientId}`, { params });
+      return response.data;
+    },
+
+    getPending: async (params = {}) => {
+      const response = await api.get('/tests/pending', { params });
+      return response.data;
+    },
+
+    getStatistics: async (params = {}) => {
+      const response = await api.get('/tests/statistics', { params });
+      return response.data;
     }
   };
 
-  // Dashboard endpoints (placeholder)
-  dashboard = {
-    getStats: async () => {
-      return this.request('/dashboard/stats');
+  // Upload endpoints
+  upload = {
+    createSession: async (testId, config = {}) => {
+      const response = await api.post('/upload/session', { testId, ...config });
+      return response.data;
     },
 
-    getAlerts: async () => {
-      return this.request('/dashboard/alerts');
-    },
-
-    getRecentActivity: async () => {
-      return this.request('/dashboard/activity');
-    }
-  };
-
-  // Upload endpoints (placeholder - to be updated when you send upload controller)
-  uploads = {
-    createSession: async (sessionData) => {
-      return this.request('/uploads/session', {
-        method: 'POST',
-        body: JSON.stringify(sessionData)
-      });
+    getSession: async (sessionId) => {
+      const response = await api.get(`/upload/session/${sessionId}`);
+      return response.data;
     },
 
     uploadFiles: async (sessionId, files, onProgress) => {
@@ -299,123 +364,337 @@ class ApiService {
         formData.append('files', file);
       });
 
-      // For file uploads, we don't set Content-Type to let browser set it with boundary
-      const headers = {};
-      if (this.token) {
-        headers.Authorization = `Bearer ${this.token}`;
-      }
-
-      const response = await fetch(`${this.baseURL}/uploads/session/${sessionId}/files`, {
-        method: 'POST',
-        headers,
-        body: formData
+      const response = await api.post(`/upload/files/${sessionId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (onProgress) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(percentCompleted);
+          }
+        }
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Upload failed');
-      }
-
-      return response.json();
+      return response.data;
     },
 
     processFiles: async (sessionId) => {
-      return this.request(`/uploads/session/${sessionId}/process`, {
-        method: 'POST'
+      const response = await api.post(`/upload/process/${sessionId}`);
+      return response.data;
+    },
+
+    validateFiles: async (files) => {
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('files', file);
       });
+
+      const response = await api.post('/upload/validate-files', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    },
+
+    getMySessions: async (params = {}) => {
+      const response = await api.get('/upload/my-sessions', { params });
+      return response.data;
     },
 
     cancelSession: async (sessionId, reason) => {
-      return this.request(`/uploads/session/${sessionId}/cancel`, {
-        method: 'POST',
-        body: JSON.stringify({ reason })
-      });
+      const response = await api.patch(`/upload/cancel/${sessionId}`, { reason });
+      return response.data;
     },
 
-    getSessionStatus: async (sessionId) => {
-      return this.request(`/uploads/session/${sessionId}/status`);
-    }
-  };
-
-  // Diagnosis endpoints (placeholder)
-  diagnosis = {
-    getByTestId: async (testId) => {
-      return this.request(`/diagnosis/test/${testId}`);
+    deleteFile: async (sessionId, filename) => {
+      const response = await api.delete(`/upload/delete-file/${sessionId}`, { 
+        data: { filename } 
+      });
+      return response.data;
     },
 
-    updateDiagnosis: async (diagnosisId, diagnosisData) => {
-      return this.request(`/diagnosis/${diagnosisId}`, {
-        method: 'PUT',
-        body: JSON.stringify(diagnosisData)
+    retryUpload: async (sessionId, retryType = 'processing', filenames = []) => {
+      const response = await api.post(`/upload/retry/${sessionId}`, { 
+        retryType, 
+        filenames 
       });
-    }
-  };
-
-  // Reports endpoints (placeholder)
-  reports = {
-    generate: async (reportData) => {
-      return this.request('/reports/generate', {
-        method: 'POST',
-        body: JSON.stringify(reportData)
-      });
-    },
-
-    export: async (reportId, format = 'pdf') => {
-      return this.request(`/reports/${reportId}/export?format=${format}`);
-    }
-  };
-
-  // Audit endpoints (for admin users)
-  audit = {
-    getLogs: async (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return this.request(`/audit/logs${queryString ? `?${queryString}` : ''}`);
+      return response.data;
     },
 
     getStatistics: async (params = {}) => {
-      const queryString = new URLSearchParams(params).toString();
-      return this.request(`/audit/statistics${queryString ? `?${queryString}` : ''}`);
+      const response = await api.get('/upload/statistics', { params });
+      return response.data;
     },
 
-    searchLogs: async (query, params = {}) => {
-      const searchParams = new URLSearchParams({ query, ...params }).toString();
-      return this.request(`/audit/search?${searchParams}`);
+    cleanupSessions: async () => {
+      const response = await api.post('/upload/cleanup');
+      return response.data;
+    }
+  };
+
+  // Diagnosis endpoints
+  diagnosis = {
+    getAll: async (params = {}) => {
+      const response = await api.get('/diagnosis', { params });
+      return response.data;
+    },
+
+    getByTestId: async (testId) => {
+      const response = await api.get(`/diagnosis/${testId}`);
+      return response.data;
+    },
+
+    runDiagnosis: async (testId) => {
+      const response = await api.post(`/diagnosis/${testId}/run`);
+      return response.data;
+    },
+
+    addManualReview: async (testId, reviewData) => {
+      const response = await api.post(`/diagnosis/${testId}/review`, reviewData);
+      return response.data;
+    },
+
+    getImages: async (testId, imageId = null) => {
+      const params = imageId ? { imageId } : {};
+      const response = await api.get(`/diagnosis/${testId}/images`, { params });
+      return response.data;
+    },
+
+    getStatistics: async (params = {}) => {
+      const response = await api.get('/diagnosis/statistics', { params });
+      return response.data;
+    },
+
+    getRequiringReview: async (params = {}) => {
+      const response = await api.get('/diagnosis/requiring-review', { params });
+      return response.data;
+    },
+
+    getPositiveCases: async (params = {}) => {
+      const response = await api.get('/diagnosis/positive-cases', { params });
+      return response.data;
+    },
+
+    exportReport: async (testId, format = 'pdf') => {
+      const response = await api.get(`/diagnosis/${testId}/export`, {
+        params: { format },
+        responseType: format === 'pdf' ? 'blob' : 'json'
+      });
+      return response.data;
+    },
+
+    sendToHospitalEMR: async (testId, data = {}) => {
+      const response = await api.post(`/diagnosis/${testId}/hospital-integration`, data);
+      return response.data;
+    },
+
+    batchExport: async (testIds, format = 'pdf', includeImages = false) => {
+      const response = await api.post('/diagnosis/batch-export', {
+        testIds,
+        format,
+        includeImages
+      }, {
+        responseType: 'blob'
+      });
+      return response.data;
+    },
+
+    addQualityFeedback: async (testId, feedback) => {
+      const response = await api.post(`/diagnosis/${testId}/quality-feedback`, feedback);
+      return response.data;
+    }
+  };
+
+  // Report endpoints
+  reports = {
+    generateTestReport: async (testId, format = 'pdf', includeImages = false) => {
+      const response = await api.get(`/reports/test/${testId}`, {
+        params: { format, includeImages },
+        responseType: format === 'pdf' ? 'blob' : 'json'
+      });
+      return response.data;
+    },
+
+    generateBulkReports: async (params) => {
+      const response = await api.post('/reports/bulk', params, {
+        responseType: 'blob'
+      });
+      return response.data;
+    },
+
+    exportCSV: async (params = {}) => {
+      const response = await api.get('/reports/export/csv', {
+        params,
+        responseType: 'blob'
+      });
+      return response.data;
+    },
+
+    getAvailable: async (params = {}) => {
+      const response = await api.get('/reports/available', { params });
+      return response.data;
+    },
+
+    getStatistics: async (period = 'month') => {
+      const response = await api.get('/reports/statistics', { params: { period } });
+      return response.data;
+    },
+
+    scheduleReport: async (scheduleData) => {
+      const response = await api.post('/reports/schedule', scheduleData);
+      return response.data;
+    }
+  };
+
+  // Analytics endpoints
+  analytics = {
+    getDashboard: async () => {
+      const response = await api.get('/analytics/dashboard');
+      return response.data;
+    },
+
+    getComprehensive: async (params = {}) => {
+      const response = await api.get('/analytics/comprehensive', { params });
+      return response.data;
+    },
+
+    getTestTrends: async (params = {}) => {
+      const response = await api.get('/analytics/test-trends', { params });
+      return response.data;
+    },
+
+    getDiagnosisDistribution: async (params = {}) => {
+      const response = await api.get('/analytics/diagnosis-distribution', { params });
+      return response.data;
+    },
+
+    getParasiteTypes: async (params = {}) => {
+      const response = await api.get('/analytics/parasite-types', { params });
+      return response.data;
+    },
+
+    getTechnicianPerformance: async (params = {}) => {
+      const response = await api.get('/analytics/technician-performance', { params });
+      return response.data;
+    },
+
+    getQualityMetrics: async (params = {}) => {
+      const response = await api.get('/analytics/quality-metrics', { params });
+      return response.data;
+    },
+
+    exportAnalytics: async (type = 'trends', params = {}) => {
+      const response = await api.get('/analytics/export', {
+        params: { type, ...params },
+        responseType: 'blob'
+      });
+      return response.data;
+    }
+  };
+
+  // Integration endpoints
+  integration = {
+    syncTest: async (testId, system = 'api', priority = 'normal') => {
+      const response = await api.post(`/integration/sync/${testId}`, { system, priority });
+      return response.data;
+    },
+
+    bulkSync: async (params) => {
+      const response = await api.post('/integration/bulk-sync', params);
+      return response.data;
+    },
+
+    getStatus: async (params = {}) => {
+      const response = await api.get('/integration/status', { params });
+      return response.data;
+    },
+
+    configure: async (config) => {
+      const response = await api.post('/integration/configure', config);
+      return response.data;
+    },
+
+    getHealth: async () => {
+      const response = await api.get('/integration/health');
+      return response.data;
+    },
+
+    retryFailed: async (testIds = [], maxRetries = 3) => {
+      const response = await api.post('/integration/retry-failed', { testIds, maxRetries });
+      return response.data;
+    },
+
+    testConnection: async (endpoint = null, authMethod = null, credentials = null) => {
+      const response = await api.post('/integration/test-connection', {
+        endpoint,
+        authMethod,
+        credentials
+      });
+      return response.data;
+    },
+
+    getLogs: async (params = {}) => {
+      const response = await api.get('/integration/logs', { params });
+      return response.data;
     }
   };
 
   // Utility methods
   isAuthenticated() {
-    return !!this.token;
+    return !!tokenManager.getToken();
   }
 
-  getCurrentToken() {
-    return this.token;
+  getCurrentUser() {
+    return tokenManager.getUser();
   }
 
-  // Auto-retry mechanism for expired tokens
-  async requestWithRetry(endpoint, options = {}, maxRetries = 1) {
-    let retryCount = 0;
-    
-    while (retryCount <= maxRetries) {
-      try {
-        return await this.request(endpoint, options);
-      } catch (error) {
-        if (error.message.includes('Authentication required') && retryCount < maxRetries) {
-          // Try to refresh token
-          try {
-            await this.auth.refreshToken();
-            retryCount++;
-            continue;
-          } catch (refreshError) {
-            // Refresh failed, redirect to login
-            window.location.href = '/login';
-            throw error;
-          }
-        }
-        throw error;
+  hasRole(role) {
+    const user = this.getCurrentUser();
+    return user && user.role === role;
+  }
+
+  hasPermission(permission) {
+    const user = this.getCurrentUser();
+    return user && user.permissions && user.permissions[permission];
+  }
+
+  clearAuth() {
+    tokenManager.clearAll();
+  }
+
+  // Helper method to handle file downloads
+  downloadFile(blob, filename) {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
+
+  // Helper method to format errors
+  formatError(error) {
+    if (error.response?.data?.message) {
+      return error.response.data.message;
+    }
+    if (error.response?.data?.errors) {
+      // Handle validation errors
+      const errors = error.response.data.errors;
+      if (typeof errors === 'object') {
+        return Object.entries(errors)
+          .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+          .join('; ');
       }
     }
+    if (error.message) {
+      return error.message;
+    }
+    return 'An unexpected error occurred';
   }
 }
 
-export default new ApiService();
+// Create and export singleton instance
+const apiService = new ApiService();
+
+// Export both the instance and the axios instance for advanced usage
+export { api, tokenManager };
+export default apiService;

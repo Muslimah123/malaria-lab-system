@@ -1,3 +1,8 @@
+// Middleware to handle WebSocket connections and events
+// This middleware listens for authentication actions to connect/disconnect the socket
+//store/src/store/middleware/socketMiddleware.js
+// and sets up event listeners for various real-time updates
+
 import socketService from '../../services/socketService';
 import { handleSocketUpdate } from '../slices/uploadsSlice';
 import { handleSocketNotification } from '../slices/notificationsSlice';

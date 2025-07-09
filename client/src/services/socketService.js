@@ -1,134 +1,111 @@
 // 📁 client/src/services/socketService.js
-// Simplified socket service without missing constants
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
 
 class SocketService {
   constructor() {
     this.socket = null;
-    this.listeners = new Map();
     this.connected = false;
+    this.onConnect = null; // Optional callback for connect event
+  }
+
+  setOnConnect(callback) {
+    this.onConnect = callback;
   }
 
   connect(token = null) {
-    try {
-      // In a real implementation, you'd connect to your WebSocket server
-      // For now, we'll just simulate the connection
-      console.log('Socket service connected (simulated)');
+    if (this.socket && this.connected) return;
+    this.socket = io(SOCKET_URL, {
+      auth: token ? { token } : undefined,
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+    });
+
+    this.socket.on('connect', () => {
       this.connected = true;
-      
-      // Simulate connection success
-      setTimeout(() => {
-        this.emit('connect', { status: 'connected' });
-      }, 100);
-      
-    } catch (error) {
-      console.error('Socket connection failed:', error);
+      if (typeof this.onConnect === 'function') {
+        this.onConnect();
+      }
+    });
+
+    this.socket.on('disconnect', () => {
       this.connected = false;
-    }
+    });
   }
 
   disconnect() {
-    try {
-      if (this.socket) {
-        this.socket.close();
-      }
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
       this.connected = false;
-      this.listeners.clear();
-      console.log('Socket disconnected');
-    } catch (error) {
-      console.error('Socket disconnect error:', error);
     }
   }
 
   on(event, callback) {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
+    if (this.socket) {
+      this.socket.on(event, callback);
     }
-    this.listeners.get(event).push(callback);
   }
 
   off(event, callback) {
-    if (this.listeners.has(event)) {
-      const callbacks = this.listeners.get(event);
-      const index = callbacks.indexOf(callback);
-      if (index > -1) {
-        callbacks.splice(index, 1);
-      }
+    if (this.socket) {
+      this.socket.off(event, callback);
     }
   }
 
   emit(event, data) {
-    if (this.listeners.has(event)) {
-      const callbacks = this.listeners.get(event);
-      callbacks.forEach(callback => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(`Error in socket event handler for ${event}:`, error);
-        }
-      });
+    if (this.socket) {
+      this.socket.emit(event, data);
     }
   }
 
-  // Upload-specific methods
-  subscribeToUploadSession(sessionId) {
-    console.log(`Subscribed to upload session: ${sessionId}`);
-    // Simulate upload progress updates
-    this.simulateUploadProgress(sessionId);
-  }
-
-  unsubscribeFromUploadSession(sessionId) {
-    console.log(`Unsubscribed from upload session: ${sessionId}`);
-  }
-
-  // Simulate upload progress for demo purposes
-  simulateUploadProgress(sessionId) {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 20;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        this.emit('upload_completed', { sessionId, progress });
-      } else {
-        this.emit('upload_progress', { sessionId, progress: Math.round(progress) });
-      }
-    }, 500);
-  }
-
-  // Test-specific methods
-  subscribeToTestUpdates() {
-    console.log('Subscribed to test updates');
-  }
-
-  unsubscribeFromTestUpdates() {
-    console.log('Unsubscribed from test updates');
-  }
-
-  // Notification methods
-  subscribeToNotifications(userId) {
-    console.log(`Subscribed to notifications for user: ${userId}`);
-  }
-
-  unsubscribeFromNotifications(userId) {
-    console.log(`Unsubscribed from notifications for user: ${userId}`);
-  }
-
-  // Check connection status
   isConnected() {
     return this.connected;
   }
 
-  // Send data to server (mock implementation)
-  send(event, data) {
-    if (!this.connected) {
-      console.warn('Socket not connected, cannot send data');
-      return false;
+  // Example: subscribe to upload session updates
+  subscribeToUploadSession(sessionId, callback) {
+    if (this.socket) {
+      this.socket.emit('joinUploadSession', sessionId);
+      this.on('upload_progress', callback);
     }
-    
-    console.log(`Sending socket event: ${event}`, data);
-    return true;
+  }
+
+  unsubscribeFromUploadSession(sessionId, callback) {
+    if (this.socket) {
+      this.socket.emit('leaveUploadSession', sessionId);
+      this.off('upload_progress', callback);
+    }
+  }
+
+  // Example: subscribe to test updates
+  subscribeToTestUpdates(callback) {
+    if (this.socket) {
+      this.on('test_update', callback);
+    }
+  }
+
+  unsubscribeFromTestUpdates(callback) {
+    if (this.socket) {
+      this.off('test_update', callback);
+    }
+  }
+
+  // Example: subscribe to notifications
+  subscribeToNotifications(userId, callback) {
+    if (this.socket) {
+      this.socket.emit('joinNotifications', userId);
+      this.on('notification', callback);
+    }
+  }
+
+  unsubscribeFromNotifications(userId, callback) {
+    if (this.socket) {
+      this.socket.emit('leaveNotifications', userId);
+      this.off('notification', callback);
+    }
   }
 }
 
-// Export singleton instance
 export default new SocketService();

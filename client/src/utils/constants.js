@@ -37,21 +37,23 @@ export const PERMISSIONS = {
   CAN_EXPORT_REPORTS: 'canExportReports'
 };
 
-// Test Statuses (placeholder - will update when you send test model)
+// Test Statuses (matching backend Test model)
 export const TEST_STATUSES = {
   PENDING: 'pending',
+  IN_PROGRESS: 'in_progress', // alias for processing
   PROCESSING: 'processing',
   COMPLETED: 'completed',
+  REJECTED: 'rejected',
+  REVIEW: 'review',
+  ERROR: 'error',
   FAILED: 'failed',
   CANCELLED: 'cancelled'
 };
 
-// Test Results (placeholder - will update when you send test model)
+// Test Results (matching backend output)
 export const TEST_RESULTS = {
-  POSITIVE: 'POS',
-  NEGATIVE: 'NEG',
-  INCONCLUSIVE: 'INC',
-  ERROR: 'ERR'
+  POSITIVE: 'POSITIVE',
+  NEGATIVE: 'NEGATIVE'
 };
 
 // Test Priorities

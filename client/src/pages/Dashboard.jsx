@@ -77,21 +77,21 @@ const Dashboard = () => {
         setRefreshing(true);
       }
 
-      // Parallel API calls for better performance
-      const [statsResponse, recentTestsResponse, alertsResponse] = await Promise.all([
-        apiService.dashboard.getStats(),
-        apiService.tests.getAll({ 
-          limit: 10, 
-          sortBy: 'createdAt', 
-          sortOrder: 'desc',
-          ...(userRole === USER_ROLES.TECHNICIAN && { technicianId: user._id })
-        }),
-        apiService.dashboard.getAlerts?.() || Promise.resolve({ data: { alerts: [] } })
-      ]);
+      // Fetch dashboard analytics from backend
+      const dashboardResponse = await apiService.analytics.getDashboard();
+      const stats = dashboardResponse.data.data || dashboardResponse.data;
 
-      const stats = statsResponse.data.data || statsResponse.data;
+      // Fetch recent tests
+      const recentTestsResponse = await apiService.tests.getAll({ 
+        limit: 10, 
+        sortBy: 'createdAt', 
+        sortOrder: 'desc',
+        ...(userRole === USER_ROLES.TECHNICIAN && { technicianId: user._id })
+      });
       const recentTests = recentTestsResponse.data.data?.tests || [];
-      const criticalAlerts = alertsResponse.data.data?.alerts || [];
+
+      // If your backend provides alerts in the dashboard response, use them; otherwise, leave as empty array
+      const criticalAlerts = stats.criticalAlerts || [];
 
       // Calculate additional metrics
       const enhancedStats = enhanceStats(stats, recentTests);
@@ -107,13 +107,11 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      
       setDashboardData(prev => ({
         ...prev,
         isLoading: false,
         error: apiService.handleApiError(error)
       }));
-
       if (!silent) {
         dispatch(showErrorToast('Failed to load dashboard data'));
       }

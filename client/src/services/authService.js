@@ -1,21 +1,16 @@
 // src/services/authService.js
-import api from './api';
+import api, { tokenManager } from './api';
 
 const authService = {
   // Login user
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials);
-    
     if (response.data.success && response.data.data.token) {
-      // Store token in localStorage and set default header
       const { token, user } = response.data.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      // Set default authorization header for future requests
+      tokenManager.setToken(token);
+      tokenManager.setUser(user);
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
-    
     return response;
   },
 
@@ -24,12 +19,9 @@ const authService = {
     try {
       await api.post('/auth/logout');
     } catch (error) {
-      // Even if server logout fails, we should clear local storage
       console.error('Server logout failed:', error);
     } finally {
-      // Clear local storage and headers
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      tokenManager.clearAll();
       delete api.defaults.headers.common['Authorization'];
     }
   },
@@ -47,26 +39,14 @@ const authService = {
   },
 
   // Get current user
-  getCurrentUser: () => {
-    try {
-      const user = localStorage.getItem('user');
-      return user ? JSON.parse(user) : null;
-    } catch (error) {
-      console.error('Error parsing user from localStorage:', error);
-      return null;
-    }
-  },
+  getCurrentUser: () => tokenManager.getUser(),
 
   // Get current token
-  getToken: () => {
-    return localStorage.getItem('token');
-  },
+  getToken: () => tokenManager.getToken(),
 
   // Check if user is authenticated
   isAuthenticated: () => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    return !!(token && user);
+    return !!(tokenManager.getToken() && tokenManager.getUser());
   },
 
   // Refresh token (if your backend supports it)
@@ -75,12 +55,11 @@ const authService = {
       const response = await api.post('/auth/refresh');
       if (response.data.success && response.data.data.token) {
         const { token } = response.data.data;
-        localStorage.setItem('token', token);
+        tokenManager.setToken(token);
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       }
       return response;
     } catch (error) {
-      // If refresh fails, user needs to login again
       authService.logout();
       throw error;
     }

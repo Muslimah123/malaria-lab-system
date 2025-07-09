@@ -1,79 +1,4 @@
-# # version: '3.8'
-
-# services:
-#   mongodb:
-#     image: mongo:6.0
-#     container_name: malaria-mongo-dev
-#     ports:
-#       - "27017:27017"
-#     volumes:
-#       - mongodb_data:/data/db
-#     networks:
-#       - malaria-network
-
-#   redis:
-#     image: redis:7-alpine
-#     container_name: malaria-redis-dev
-#     ports:
-#       - "6379:6379"
-#     networks:
-#       - malaria-network
-
-#   # Note: DiagnosisApi runs separately with its own docker-compose
-#   # Start it with: cd DiagnosisApi && docker-compose up
-
-#   backend:
-#     build:
-#       context: ./server
-#       dockerfile: ../docker/Dockerfile.server
-#     platform: linux/amd64  
-#     container_name: malaria-backend-dev
-#     ports:
-#       - "5000:5000"
-#     volumes:
-#       - ./server:/app  # Hot reload for development
-#       - /app/node_modules  # Prevent overwriting node_modules
-#     environment:
-#       - NODE_ENV=development
-#       - MONGODB_URI=mongodb://mongodb:27017/malaria_lab
-#       - REDIS_HOST=redis
-#       - REDIS_PORT=6379
-#       - REDIS_URL=redis://redis:6379
-#       - FLASK_API_URL=http://host.docker.internal:5001
-#     depends_on:
-#       - mongodb
-#       - redis
-#     env_file:
-#       - ./server/.env
-#     networks:
-#       - malaria-network
-
-#   frontend:
-#     build:
-#       context: ./client
-#       dockerfile: ../docker/Dockerfile.client
-#     platform: linux/amd64 
-#     container_name: malaria-frontend-dev
-#     ports:
-#       - "3000:3000"
-#     volumes:
-#       - ./client:/app  # Hot reload for development
-#       - /app/node_modules  # Prevent overwriting node_modules
-#     environment:
-#       - REACT_APP_API_URL=http://localhost:5000
-#       - CHOKIDAR_USEPOLLING=true  # For file watching in containers
-#     depends_on:
-#       - backend
-#     networks:
-#       - malaria-network
-
-# volumes:
-#   mongodb_data:
-
-# networks:
-#   malaria-network:
-#     driver: bridge
-# Simplified docker-compose.dev.yml - Core services only
+# docker-compose.dev.yml - Core services only
 services:
   # Core Backend Services
   mongodb:
@@ -94,28 +19,28 @@ services:
     networks:
       - malaria-network
 
-  # # Flask API (Diagnosis Service)
-  # flask-api:
-  #   build:
-  #     context: ./DiagnosisApi
-  #     dockerfile: Dockerfile
-  #   container_name: malaria-flask-api-dev
-  #   ports:
-  #     - "5001:5000"  # External port 5001, internal 5000
-  #   volumes:
-  #     - ./DiagnosisApi/logs:/app/logs
-  #     - uploads_data:/app/shared_uploads  # Shared uploads with Node.js backend
-  #   environment:
-  #     - FLASK_ENV=development
-  #     - LOG_LEVEL=debug
-  #     - UPLOAD_FOLDER=/app/shared_uploads
-  #   networks:
-  #     - malaria-network
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
+  # Flask API (Diagnosis Service)
+  flask-api:
+    build:
+      context: ./DiagnosisApi
+      dockerfile: Dockerfile
+    container_name: malaria-flask-api-dev
+    ports:
+      - "5001:5000"  # External port 5001, internal 5000
+    volumes:
+      - ./DiagnosisApi/logs:/app/logs
+      - uploads_data:/app/shared_uploads  # Shared uploads with Node.js backend
+    environment:
+      - FLASK_ENV=development
+      - LOG_LEVEL=debug
+      - UPLOAD_FOLDER=/app/shared_uploads
+    networks:
+      - malaria-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Node.js Backend
   backend:
@@ -140,7 +65,7 @@ services:
     depends_on:
       - mongodb
       - redis
-      # - flask-api
+      - flask-api
     env_file:
       - ./server/.env
     networks:

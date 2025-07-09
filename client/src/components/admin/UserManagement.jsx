@@ -1,6 +1,4 @@
 // 📁 client/src/components/admin/UserManagement.jsx
-// Complete user management component matching your backend API
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
