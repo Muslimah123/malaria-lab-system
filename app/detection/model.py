@@ -55,7 +55,18 @@ class MalariaDetector:
                 "parasite_wbc_ratio": parasite_wbc_ratio
             }
 
-            logger.info(f"Detection completed for {image_path}: {parasite_count} parasites, {wbc_count} WBCs, ratio: {parasite_wbc_ratio}")
+            # Determine the most probable parasite in this image
+            if parasites_detected:
+                most_probable = max(parasites_detected, key=lambda x: x["confidence"])
+                logger.info(
+                    f"Detection completed for {image_path}: {parasite_count} parasites, "
+                    f"Most Probable Parasite={most_probable['type']}",
+                    f"Confidence: {most_probable['confidence']:.2f}",
+                    f"{wbc_count} WBCs, ratio: {parasite_wbc_ratio:.2f}"
+                )
+            else:
+                logger.info(f"Detection completed for {image_path}: No parasites detected, {wbc_count} WBCs")
+
             return detection_result, None
 
         except Exception as e:

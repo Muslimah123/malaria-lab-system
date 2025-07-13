@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: malaria-api
     ports:
-      - "5005:5000"
+      - "5006:5000"
     volumes:
       - ./Uploads:/app/uploads
       - ./logs:/app/logs

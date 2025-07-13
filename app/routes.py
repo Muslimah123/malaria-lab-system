@@ -35,8 +35,7 @@ def init_routes(app):
                 logger.error(f"Diagnosis failed: {report.get('error')}")
                 return jsonify(report), 500, {'Content-Type': 'application/json'}
 
-            logger.info(f"Diagnosis completed successfully: Status={report['status']}, "
-                       f"Images processed={report['total_images_processed']}")
+            logger.info(f"Diagnosis completed successfully: Status={report['status']}")
             return json.dumps(report, indent=2), 200, {'Content-Type': 'application/json'}
 
         except Exception as e:

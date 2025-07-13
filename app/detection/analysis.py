@@ -58,12 +58,24 @@ class MalariaAnalyzer:
                 "parasite_name": most_probable_parasite,
                 "parasite_wbc_ratio": parasite_wbc_ratio,
                 "detections": detections,
-                "total_images_processed": len(detections),
                 "total_images_attempted": len(image_paths)
             }
 
-            logger.info(f"Analysis completed: Status={patient_status}, Total Parasites={total_parasite_count}, "
-                       f"Total WBCs={total_wbc_count}, Ratio={parasite_wbc_ratio}")
+            # Improved logging for clarity
+            if most_probable_parasite:
+                parasite_info = {
+                    "Most Probable Parasite": most_probable_parasite['type'],
+                    "Confidence level": f"{most_probable_parasite['confidence']:.2f}"
+
+                }
+                 
+            else:
+                parasite_info = "No parasites detected"
+            
+            logger.info(
+                f"Analysis completed: Status={patient_status}, Total Parasites={total_parasite_count},"
+                f"{parasite_info}, Total WBCs={total_wbc_count}, Ratio={parasite_wbc_ratio:.2f}"
+            )
             logger.info(f"Analysis summary: {len(detections)}/{len(image_paths)} images successfully processed")
             
             return analysis_report
@@ -74,6 +86,6 @@ class MalariaAnalyzer:
                 "status": "ERROR",
                 "error": str(e),
                 "detections": [],
-                "total_images_processed": 0,
+                # "total_images_processed": 0,
                 "total_images_attempted": len(image_paths)
             }
