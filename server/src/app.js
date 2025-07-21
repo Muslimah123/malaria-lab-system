@@ -99,7 +99,14 @@ class App {
     }));
 
     // Static file serving
-    this.app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+    // this.app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+    this.app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  setHeaders: (res, filePath) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'); 
+  }
+}));
+
     this.app.use('/public', express.static(path.join(__dirname, '../public')));
 
     // Add request ID for tracking

@@ -1,8 +1,770 @@
-// 📁 client/src/components/upload/PatientForm.jsx
-// Updated to match your backend Patient model exactly
+// // 📁 client/src/components/upload/PatientForm.jsx
+// // Enhanced with debounce search and loading states - COMPLETE VERSION
+// import React, { useState, useEffect, useCallback, useRef } from 'react';
+// import { useForm } from 'react-hook-form';
+// import { 
+//   User, 
+//   Phone, 
+//   Mail, 
+//   Calendar, 
+//   MapPin, 
+//   FileText, 
+//   AlertCircle, 
+//   Search,
+//   Plus,
+//   UserCheck,
+//   CheckCircle,
+//   Heart,
+//   Stethoscope,
+//   Building,
+//   UserPlus,
+//   TestTube
+// } from 'lucide-react';
+// import LoadingSpinner from '../common/LoadingSpinner';
+// import { 
+//   GENDER_OPTIONS, 
+//   BLOOD_TYPES, 
+//   TEST_PRIORITIES, 
+//   SAMPLE_TYPES,
+//   VALIDATION_RULES,
+//   PATIENT_ID_FORMAT
+// } from '../../utils/constants';
+// import apiService from '../../services/api';
 
-import React, { useState, useEffect } from 'react';
+// // Debounce hook
+// const useDebounce = (value, delay) => {
+//   const [debouncedValue, setDebouncedValue] = useState(value);
+
+//   useEffect(() => {
+//     const handler = setTimeout(() => {
+//       setDebouncedValue(value);
+//     }, delay);
+
+//     return () => {
+//       clearTimeout(handler);
+//     };
+//   }, [value, delay]);
+
+//   return debouncedValue;
+// };
+
+// const PatientForm = ({ 
+//   initialData, 
+//   testData, 
+//   onSubmit, 
+//   onTestDataChange, 
+//   loading = false, 
+//   error 
+// }) => {
+//   const [isNewPatient, setIsNewPatient] = useState(!initialData);
+//   const [searchingPatient, setSearchingPatient] = useState(false);
+//   const [searchResults, setSearchResults] = useState([]);
+//   const [searchTerm, setSearchTerm] = useState('');
+//   const [showEmergencyContact, setShowEmergencyContact] = useState(false);
+//   const [showMedicalHistory, setShowMedicalHistory] = useState(false);
+//   const [showReferringPhysician, setShowReferringPhysician] = useState(false);
+//   const [selectedPatientLoading, setSelectedPatientLoading] = useState(false);
+//   const [patientSelected, setPatientSelected] = useState(false);
+
+//   // Debounced search term
+//   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+//   // Form data persistence key
+//   const FORM_STORAGE_KEY = 'malaria-lab-patient-form-draft';
+
+//   const {
+//     register,
+//     handleSubmit,
+//     formState: { errors, isSubmitting, isDirty },
+//     reset,
+//     watch,
+//     setValue,
+//     getValues
+//   } = useForm({
+//     defaultValues: {
+//       // Patient data (matching backend Patient model)
+//       patientId: initialData?.patientId || '',
+//       firstName: initialData?.firstName || '',
+//       lastName: initialData?.lastName || '',
+//       dateOfBirth: initialData?.dateOfBirth ? 
+//         new Date(initialData.dateOfBirth).toISOString().split('T')[0] : '',
+//       gender: initialData?.gender || 'unknown',
+//       age: initialData?.age || '',
+//       phoneNumber: initialData?.phoneNumber || '',
+//       email: initialData?.email || '',
+      
+//       // Address (nested object in backend)
+//       street: initialData?.address?.street || '',
+//       city: initialData?.address?.city || '',
+//       state: initialData?.address?.state || '',
+//       zipCode: initialData?.address?.zipCode || '',
+//       country: initialData?.address?.country || 'Rwanda',
+      
+//       // Medical information
+//       bloodType: initialData?.bloodType || 'unknown',
+//       allergies: initialData?.allergies?.join(', ') || '',
+      
+//       // Emergency contact (nested object in backend)
+//       emergencyContactName: initialData?.emergencyContact?.name || '',
+//       emergencyContactRelationship: initialData?.emergencyContact?.relationship || '',
+//       emergencyContactPhone: initialData?.emergencyContact?.phoneNumber || '',
+      
+//       // Hospital information
+//       hospitalId: initialData?.hospitalId || '',
+//       referringPhysicianName: initialData?.referringPhysician?.name || '',
+//       referringPhysicianLicense: initialData?.referringPhysician?.licenseNumber || '',
+//       referringPhysicianDepartment: initialData?.referringPhysician?.department || '',
+      
+//       // Test data
+//       priority: testData?.priority || 'normal',
+//       sampleType: testData?.sampleType || 'blood_smear',
+//       symptoms: testData?.clinicalNotes?.symptoms || [],
+//       duration: testData?.clinicalNotes?.duration || '',
+//       travelHistory: testData?.clinicalNotes?.travelHistory || '',
+//       medications: testData?.clinicalNotes?.medications || '',
+//       additionalNotes: testData?.clinicalNotes?.additionalNotes || ''
+//     }
+//   });
+
+//   const watchedData = watch();
+
+//   // Load saved form data on mount
+//   useEffect(() => {
+//     if (!initialData && isNewPatient) {
+//       const savedData = localStorage.getItem(FORM_STORAGE_KEY);
+//       if (savedData) {
+//         try {
+//           const parsedData = JSON.parse(savedData);
+//           Object.keys(parsedData).forEach(key => {
+//             setValue(key, parsedData[key]);
+//           });
+//         } catch (error) {
+//           console.error('Failed to load saved form data:', error);
+//         }
+//       }
+//     }
+//   }, [initialData, isNewPatient, setValue]);
+
+//   // Auto-save form data to localStorage
+//   useEffect(() => {
+//     if (isDirty && isNewPatient) {
+//       const formData = getValues();
+//       localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
+//     }
+//   }, [watchedData, isDirty, isNewPatient, getValues]);
+
+//   // Update test data when form values change
+ 
+// useEffect(() => {
+//   if (onTestDataChange) {
+//     // Only update if values actually changed
+//     const newTestData = {
+//       priority: watchedData.priority,
+//       sampleType: watchedData.sampleType,
+//       clinicalNotes: {
+//         symptoms: watchedData.symptoms,
+//         duration: watchedData.duration,
+//         travelHistory: watchedData.travelHistory,
+//         medications: watchedData.medications,
+//         additionalNotes: watchedData.additionalNotes
+//       }
+//     };
+    
+//     // Prevent infinite loops by checking if data actually changed
+//     onTestDataChange(newTestData);
+//   }
+// }, [
+//   watchedData.priority,
+//   watchedData.sampleType,
+//   watchedData.symptoms,
+//   watchedData.duration,
+//   watchedData.travelHistory,
+//   watchedData.medications,
+//   watchedData.additionalNotes,
+//   // DON'T include onTestDataChange in dependencies
+// ]);
+
+//   // Debounced patient search
+//   useEffect(() => {
+//     if (debouncedSearchTerm && debouncedSearchTerm.length >= 2) {
+//       searchPatients(debouncedSearchTerm);
+//     } else {
+//       setSearchResults([]);
+//     }
+//   }, [debouncedSearchTerm]);
+
+//   // Search for existing patients
+//   const searchPatients = async (searchTerm) => {
+//   setSearchingPatient(true);
+//   try {
+//     const response = await apiService.patients.search(searchTerm);
+    
+//     // Handle the enhanced response structure
+//     if (response.success) {
+//       setSearchResults(response.data || []);
+//     } else {
+//       console.error('Search failed:', response.error);
+//       setSearchResults([]);
+//     }
+//   } catch (error) {
+//     console.error('Patient search failed:', error);
+//     setSearchResults([]);
+//   } finally {
+//     setSearchingPatient(false);
+//   }
+// };
+
+//   // Handle patient selection from search results
+//   const selectPatient = async (patient) => {
+//     setSelectedPatientLoading(true);
+//     setPatientSelected(false);
+    
+//     try {
+//       // Fill form with selected patient data
+//       Object.keys(patient).forEach(key => {
+//         if (key === 'address' && patient.address) {
+//           setValue('street', patient.address.street || '');
+//           setValue('city', patient.address.city || '');
+//           setValue('state', patient.address.state || '');
+//           setValue('zipCode', patient.address.zipCode || '');
+//           setValue('country', patient.address.country || 'Rwanda');
+//         } else if (key === 'emergencyContact' && patient.emergencyContact) {
+//           setValue('emergencyContactName', patient.emergencyContact.name || '');
+//           setValue('emergencyContactRelationship', patient.emergencyContact.relationship || '');
+//           setValue('emergencyContactPhone', patient.emergencyContact.phoneNumber || '');
+//         } else if (key === 'referringPhysician' && patient.referringPhysician) {
+//           setValue('referringPhysicianName', patient.referringPhysician.name || '');
+//           setValue('referringPhysicianLicense', patient.referringPhysician.licenseNumber || '');
+//           setValue('referringPhysicianDepartment', patient.referringPhysician.department || '');
+//         } else if (key === 'allergies' && Array.isArray(patient.allergies)) {
+//           setValue('allergies', patient.allergies.join(', '));
+//         } else if (key === 'dateOfBirth' && patient.dateOfBirth) {
+//           setValue('dateOfBirth', new Date(patient.dateOfBirth).toISOString().split('T')[0]);
+//         } else {
+//           setValue(key, patient[key] || '');
+//         }
+//       });
+
+//       setIsNewPatient(false);
+//       setSearchResults([]);
+//       setSearchTerm('');
+//       setPatientSelected(true);
+      
+//       // Clear saved draft since we selected a patient
+//       localStorage.removeItem(FORM_STORAGE_KEY);
+      
+//     } catch (error) {
+//       console.error('Failed to select patient:', error);
+//     } finally {
+//       setSelectedPatientLoading(false);
+//     }
+//   };
+
+//   const handleFormSubmit = (data) => {
+//     // Transform form data to match backend Patient model structure
+//     const patientData = {
+//       // Basic information
+//       patientId: data.patientId || undefined,
+//       firstName: data.firstName.trim(),
+//       lastName: data.lastName.trim(),
+//       dateOfBirth: data.dateOfBirth || undefined,
+//       gender: data.gender,
+//       age: data.age ? parseInt(data.age) : undefined,
+//       phoneNumber: data.phoneNumber.trim() || undefined,
+//       email: data.email.trim() || undefined,
+      
+//       // Address object
+//       address: {
+//         street: data.street.trim() || undefined,
+//         city: data.city.trim() || undefined,
+//         state: data.state.trim() || undefined,
+//         zipCode: data.zipCode.trim() || undefined,
+//         country: data.country || 'Rwanda'
+//       },
+      
+//       // Medical information
+//       bloodType: data.bloodType,
+//       allergies: data.allergies ? 
+//         data.allergies.split(',').map(a => a.trim()).filter(a => a) : [],
+      
+//       // Emergency contact object
+//       emergencyContact: (data.emergencyContactName || data.emergencyContactPhone) ? {
+//         name: data.emergencyContactName.trim() || undefined,
+//         relationship: data.emergencyContactRelationship.trim() || undefined,
+//         phoneNumber: data.emergencyContactPhone.trim() || undefined
+//       } : undefined,
+      
+//       // Hospital information
+//       hospitalId: data.hospitalId.trim() || undefined,
+//       referringPhysician: (data.referringPhysicianName || data.referringPhysicianLicense) ? {
+//         name: data.referringPhysicianName.trim() || undefined,
+//         licenseNumber: data.referringPhysicianLicense.trim() || undefined,
+//         department: data.referringPhysicianDepartment.trim() || undefined
+//       } : undefined,
+      
+//       // Include MongoDB _id if updating existing patient
+//       ...(initialData?._id && { _id: initialData._id })
+//     };
+
+//     // Remove undefined values to avoid backend validation issues
+//     Object.keys(patientData).forEach(key => {
+//       if (patientData[key] === undefined) {
+//         delete patientData[key];
+//       } else if (typeof patientData[key] === 'object' && patientData[key] !== null) {
+//         Object.keys(patientData[key]).forEach(subKey => {
+//           if (patientData[key][subKey] === undefined) {
+//             delete patientData[key][subKey];
+//           }
+//         });
+//         // Remove empty objects
+//         if (Object.keys(patientData[key]).length === 0) {
+//           delete patientData[key];
+//         }
+//       }
+//     });
+
+//     // Clear saved form data on successful submit
+//     localStorage.removeItem(FORM_STORAGE_KEY);
+    
+//     onSubmit(patientData);
+//   };
+
+//   // Calculate age from date of birth
+//   const calculateAge = (dateOfBirth) => {
+//     if (!dateOfBirth) return '';
+    
+//     const today = new Date();
+//     const birthDate = new Date(dateOfBirth);
+//     let age = today.getFullYear() - birthDate.getFullYear();
+//     const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+//     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+//       age--;
+//     }
+//     return age;
+//   };
+
+//   // Auto-calculate age when date of birth changes
+//   useEffect(() => {
+//     const dateOfBirth = watchedData.dateOfBirth;
+//     if (dateOfBirth) {
+//       const calculatedAge = calculateAge(dateOfBirth);
+//       if (calculatedAge >= 0) {
+//         setValue('age', calculatedAge.toString());
+//       }
+//     }
+//   }, [watchedData.dateOfBirth, setValue]);
+
+//   // Clear saved draft
+//   const clearDraft = () => {
+//     localStorage.removeItem(FORM_STORAGE_KEY);
+//     reset();
+//   };
+
+//   return (
+//   <div className="space-y-6">
+//     {/* Header */}
+//     <div className="text-center mb-8">
+//       <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-4 border border-white/30">
+//         <User className="w-8 h-8 text-white" />
+//       </div>
+//       <h3 className="text-xl font-semibold text-white mb-2">Patient Information</h3>
+//       <p className="text-blue-200">Search for an existing patient or create a new patient record</p>
+//     </div>
+
+//     {/* Error Display */}
+//     {error && (
+//       <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
+//         <div className="flex items-center text-red-200">
+//           <AlertCircle className="w-5 h-5 mr-2" />
+//           <span className="text-sm">{error}</span>
+//         </div>
+//       </div>
+//     )}
+
+//     {/* Draft notification */}
+//     {isDirty && isNewPatient && (
+//       <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+//         <div className="flex items-center justify-between">
+//           <div className="flex items-center text-blue-200">
+//             <CheckCircle className="w-4 h-4 mr-2" />
+//             <span className="text-sm">Form data is being auto-saved</span>
+//           </div>
+//           <button
+//             type="button"
+//             onClick={clearDraft}
+//             className="text-blue-200 hover:text-white text-sm font-medium"
+//           >
+//             Clear draft
+//           </button>
+//         </div>
+//       </div>
+//     )}
+
+//     {/* Patient Type Selection */}
+//     <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-6">
+//       <div className="flex items-center justify-center space-x-8 mb-6">
+//         <label className="flex items-center cursor-pointer group">
+//           <input
+//             type="radio"
+//             checked={!isNewPatient}
+//             onChange={() => setIsNewPatient(false)}
+//             className="mr-3 w-4 h-4 text-blue-500"
+//           />
+//           <div className="flex items-center text-white group-hover:text-blue-200">
+//             <UserCheck className="w-5 h-5 mr-2" />
+//             <span className="font-medium">Existing Patient</span>
+//           </div>
+//         </label>
+        
+//         <label className="flex items-center cursor-pointer group">
+//           <input
+//             type="radio"
+//             checked={isNewPatient}
+//             onChange={() => setIsNewPatient(true)}
+//             className="mr-3 w-4 h-4 text-blue-500"
+//           />
+//           <div className="flex items-center text-white group-hover:text-blue-200">
+//             <Plus className="w-5 h-5 mr-2" />
+//             <span className="font-medium">New Patient</span>
+//           </div>
+//         </label>
+//       </div>
+
+//       {/* Patient Search */}
+//       {!isNewPatient && (
+//         <div className="relative">
+//           <div className="flex items-center space-x-2">
+//             <div className="flex-1 relative">
+//               <Search className="absolute left-3 top-3 h-5 w-5 text-blue-300" />
+//               <input
+//                 type="text"
+//                 placeholder="Search by Patient ID, name, or phone..."
+//                 value={searchTerm}
+//                 onChange={(e) => setSearchTerm(e.target.value)}
+//                 className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50"
+//               />
+//             </div>
+//             {(searchingPatient || selectedPatientLoading) && (
+//               <LoadingSpinner size="sm" color="white" />
+//             )}
+//           </div>
+
+//           {/* Patient selected indicator */}
+//           {patientSelected && !selectedPatientLoading && (
+//             <div className="mt-3 flex items-center text-green-400">
+//               <CheckCircle className="w-4 h-4 mr-2" />
+//               <span className="text-sm font-medium">Patient selected successfully</span>
+//             </div>
+//           )}
+
+//           {/* Search Results */}
+//           {searchResults.length > 0 && (
+//             <div className="absolute top-full left-0 right-0 z-10 mt-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+//               {searchResults.map((patient) => (
+//                 <button
+//                   key={patient._id}
+//                   type="button"
+//                   onClick={() => selectPatient(patient)}
+//                   className="w-full text-left p-4 hover:bg-white/10 border-b border-white/10 last:border-b-0 focus:bg-white/10 focus:outline-none transition-colors"
+//                 >
+//                   <div className="font-medium text-white">
+//                     {patient.firstName} {patient.lastName}
+//                   </div>
+//                   <div className="text-sm text-blue-200">
+//                     ID: {patient.patientId} • Age: {patient.age || 'Unknown'} • Phone: {patient.phoneNumber || 'N/A'}
+//                   </div>
+//                 </button>
+//               ))}
+//             </div>
+//           )}
+
+//           {/* No results */}
+//           {debouncedSearchTerm && debouncedSearchTerm.length >= 2 && searchResults.length === 0 && !searchingPatient && (
+//             <div className="absolute top-full left-0 right-0 z-10 mt-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-4">
+//               <p className="text-sm text-blue-200 text-center">
+//                 No patients found matching "{debouncedSearchTerm}"
+//               </p>
+//             </div>
+//           )}
+//         </div>
+//       )}
+//     </div>
+
+//     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+//       {/* Basic Information */}
+//       <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-6">
+//         <h4 className="text-lg font-medium text-white mb-6 flex items-center">
+//           <User className="w-5 h-5 mr-2" />
+//           Basic Information
+//         </h4>
+        
+//         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//           {/* Patient ID */}
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Patient ID {!isNewPatient && '*'}
+//             </label>
+//             <input
+//               {...register('patientId', {
+//                 ...((!isNewPatient) && {
+//                   required: 'Patient ID is required for existing patients'
+//                 })
+//               })}
+//               type="text"
+//               className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50 ${
+//                 errors.patientId ? 'border-red-500/50' : 'border-white/30'
+//               }`}
+//               placeholder={isNewPatient ? "Auto-generated" : "PAT-20240101-001"}
+//               disabled={isNewPatient}
+//             />
+//             {errors.patientId && (
+//               <p className="mt-1 text-sm text-red-300">{errors.patientId.message}</p>
+//             )}
+//           </div>
+
+//           {/* First Name */}
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               First Name *
+//             </label>
+//             <input
+//               {...register('firstName', { 
+//                 required: 'First name is required',
+//                 maxLength: { value: 50, message: 'First name must be less than 50 characters' }
+//               })}
+//               type="text"
+//               className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50 ${
+//                 errors.firstName ? 'border-red-500/50' : 'border-white/30'
+//               }`}
+//               placeholder="Enter first name"
+//             />
+//             {errors.firstName && (
+//               <p className="mt-1 text-sm text-red-300">{errors.firstName.message}</p>
+//             )}
+//           </div>
+
+//           {/* Last Name */}
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Last Name *
+//             </label>
+//             <input
+//               {...register('lastName', { 
+//                 required: 'Last name is required',
+//                 maxLength: { value: 50, message: 'Last name must be less than 50 characters' }
+//               })}
+//               type="text"
+//               className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50 ${
+//                 errors.lastName ? 'border-red-500/50' : 'border-white/30'
+//               }`}
+//               placeholder="Enter last name"
+//             />
+//             {errors.lastName && (
+//               <p className="mt-1 text-sm text-red-300">{errors.lastName.message}</p>
+//             )}
+//           </div>
+
+//           {/* Date of Birth */}
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Date of Birth
+//             </label>
+//             <input
+//               {...register('dateOfBirth')}
+//               type="date"
+//               className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+//               max={new Date().toISOString().split('T')[0]}
+//             />
+//           </div>
+
+//           {/* Age */}
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Age
+//             </label>
+//             <input
+//               {...register('age', {
+//                 min: { value: 0, message: 'Age must be positive' },
+//                 max: { value: 150, message: 'Please enter a valid age' }
+//               })}
+//               type="number"
+//               className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+//               placeholder="Auto-calculated from DOB"
+//             />
+//           </div>
+
+//           {/* Gender */}
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Gender
+//             </label>
+//             <select
+//               {...register('gender')}
+//               className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+//             >
+//               {GENDER_OPTIONS.map(option => (
+//                 <option key={option.value} value={option.value} className="bg-blue-800">
+//                   {option.label}
+//                 </option>
+//               ))}
+//             </select>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Contact Information */}
+//       <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-6">
+//         <h4 className="text-lg font-medium text-white mb-6 flex items-center">
+//           <Phone className="w-5 h-5 mr-2" />
+//           Contact Information
+//         </h4>
+        
+//         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Phone Number
+//             </label>
+//             <input
+//               {...register('phoneNumber')}
+//               type="tel"
+//               className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+//               placeholder="+250 XXX XXX XXX"
+//             />
+//           </div>
+
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Email Address
+//             </label>
+//             <input
+//               {...register('email')}
+//               type="email"
+//               className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+//               placeholder="patient@example.com"
+//             />
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Test Information */}
+//       <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-6">
+//         <h4 className="text-lg font-medium text-white mb-6 flex items-center">
+//           <TestTube className="w-5 h-5 mr-2" />
+//           Test Information
+//         </h4>
+        
+//         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Priority
+//             </label>
+//             <select
+//               {...register('priority')}
+//               className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+//             >
+//               {Object.entries(TEST_PRIORITIES).map(([key, value]) => (
+//                 <option key={value} value={value} className="bg-blue-800">
+//                   {key.charAt(0) + key.slice(1).toLowerCase()}
+//                 </option>
+//               ))}
+//             </select>
+//           </div>
+
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Sample Type
+//             </label>
+//             <select
+//               {...register('sampleType')}
+//               className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+//             >
+//               {Object.entries(SAMPLE_TYPES).map(([key, value]) => (
+//                 <option key={value} value={value} className="bg-blue-800">
+//                   {key.split('_').map(word => 
+//                     word.charAt(0) + word.slice(1).toLowerCase()
+//                   ).join(' ')}
+//                 </option>
+//               ))}
+//             </select>
+//           </div>
+//         </div>
+
+//         {/* Clinical Notes */}
+//         <div className="mt-6 space-y-4">
+//           <div>
+//             <label className="block text-sm font-medium text-blue-200 mb-2">
+//               Symptoms
+//             </label>
+//             <textarea
+//               {...register('symptoms')}
+//               rows={2}
+//               className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+//               placeholder="Describe current symptoms"
+//             />
+//           </div>
+
+//           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//             <div>
+//               <label className="block text-sm font-medium text-blue-200 mb-2">
+//                 Duration
+//               </label>
+//               <input
+//                 {...register('duration')}
+//                 type="text"
+//                 className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+//                 placeholder="e.g., 3 days, 1 week"
+//               />
+//             </div>
+
+//             <div>
+//               <label className="block text-sm font-medium text-blue-200 mb-2">
+//                 Travel History
+//               </label>
+//               <input
+//                 {...register('travelHistory')}
+//                 type="text"
+//                 className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+//                 placeholder="Recent travel to endemic areas"
+//               />
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* Submit Button */}
+//       <div className="text-center pt-6">
+//         <button
+//           type="submit"
+//           disabled={loading || isSubmitting}
+//           className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-blue-50 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+//         >
+//           {loading || isSubmitting ? (
+//             <div className="flex items-center justify-center">
+//               <LoadingSpinner size="sm" color="blue" />
+//               <span className="ml-2">
+//                 {isNewPatient ? 'Creating...' : 'Updating...'}
+//               </span>
+//             </div>
+//           ) : (
+//             <>
+//               <FileText className="w-5 h-5 mr-2 inline" />
+//               {isNewPatient ? 'Create Patient & Test' : 'Update & Continue'}
+//             </>
+//           )}
+//         </button>
+//       </div>
+//     </form>
+//   </div>
+// );
+// };
+
+// export default PatientForm;
+// 📁 client/src/components/upload/PatientForm.jsx
+// Enhanced with debounce search and loading states - COMPLETE VERSION WITH REDUX INTEGRATION
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
+import { useDispatch, useSelector } from 'react-redux';
 import { 
   User, 
   Phone, 
@@ -13,8 +775,24 @@ import {
   AlertCircle, 
   Search,
   Plus,
-  UserCheck
+  UserCheck,
+  CheckCircle,
+  Heart,
+  Stethoscope,
+  Building,
+  UserPlus,
+  TestTube
 } from 'lucide-react';
+
+// Redux imports
+import {
+  searchPatients as searchPatientsRedux,
+  clearSearchResults,
+  selectSearchResults,
+  selectPatientsLoading,
+  selectIsSearchingPatients
+} from '../../store/slices/patientsSlice';
+
 import LoadingSpinner from '../common/LoadingSpinner';
 import { 
   GENDER_OPTIONS, 
@@ -24,7 +802,23 @@ import {
   VALIDATION_RULES,
   PATIENT_ID_FORMAT
 } from '../../utils/constants';
-import apiService from '../../services/api';
+
+// Debounce hook
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 const PatientForm = ({ 
   initialData, 
@@ -34,17 +828,31 @@ const PatientForm = ({
   loading = false, 
   error 
 }) => {
+  const dispatch = useDispatch();
+  
+  // Redux selectors
+  const searchResults = useSelector(selectSearchResults);
+  const patientsLoading = useSelector(selectPatientsLoading);
+  const isSearchingPatients = useSelector(selectIsSearchingPatients);
+
   const [isNewPatient, setIsNewPatient] = useState(!initialData);
-  const [searchingPatient, setSearchingPatient] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showEmergencyContact, setShowEmergencyContact] = useState(false);
   const [showMedicalHistory, setShowMedicalHistory] = useState(false);
+  const [showReferringPhysician, setShowReferringPhysician] = useState(false);
+  const [selectedPatientLoading, setSelectedPatientLoading] = useState(false);
+  const [patientSelected, setPatientSelected] = useState(false);
+
+  // Debounced search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Form data persistence key
+  const FORM_STORAGE_KEY = 'malaria-lab-patient-form-draft';
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
     reset,
     watch,
     setValue,
@@ -52,7 +860,7 @@ const PatientForm = ({
   } = useForm({
     defaultValues: {
       // Patient data (matching backend Patient model)
-      patientId: initialData?.patientId || '', // Will be auto-generated if empty
+      patientId: initialData?.patientId || '',
       firstName: initialData?.firstName || '',
       lastName: initialData?.lastName || '',
       dateOfBirth: initialData?.dateOfBirth ? 
@@ -87,7 +895,7 @@ const PatientForm = ({
       // Test data
       priority: testData?.priority || 'normal',
       sampleType: testData?.sampleType || 'blood_smear',
-      symptoms: testData?.clinicalNotes?.symptoms || '',
+      symptoms: testData?.clinicalNotes?.symptoms || [],
       duration: testData?.clinicalNotes?.duration || '',
       travelHistory: testData?.clinicalNotes?.travelHistory || '',
       medications: testData?.clinicalNotes?.medications || '',
@@ -97,10 +905,36 @@ const PatientForm = ({
 
   const watchedData = watch();
 
+  // Load saved form data on mount
+  useEffect(() => {
+    if (!initialData && isNewPatient) {
+      const savedData = localStorage.getItem(FORM_STORAGE_KEY);
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          Object.keys(parsedData).forEach(key => {
+            setValue(key, parsedData[key]);
+          });
+        } catch (error) {
+          console.error('Failed to load saved form data:', error);
+        }
+      }
+    }
+  }, [initialData, isNewPatient, setValue]);
+
+  // Auto-save form data to localStorage
+  useEffect(() => {
+    if (isDirty && isNewPatient) {
+      const formData = getValues();
+      localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formData));
+    }
+  }, [watchedData, isDirty, isNewPatient, getValues]);
+
   // Update test data when form values change
   useEffect(() => {
     if (onTestDataChange) {
-      onTestDataChange({
+      // Only update if values actually changed
+      const newTestData = {
         priority: watchedData.priority,
         sampleType: watchedData.sampleType,
         clinicalNotes: {
@@ -110,68 +944,95 @@ const PatientForm = ({
           medications: watchedData.medications,
           additionalNotes: watchedData.additionalNotes
         }
-      });
+      };
+      
+      // Prevent infinite loops by checking if data actually changed
+      onTestDataChange(newTestData);
     }
-  }, [watchedData, onTestDataChange]);
+  }, [
+    watchedData.priority,
+    watchedData.sampleType,
+    watchedData.symptoms,
+    watchedData.duration,
+    watchedData.travelHistory,
+    watchedData.medications,
+    watchedData.additionalNotes,
+    // DON'T include onTestDataChange in dependencies
+  ]);
 
-  // Search for existing patients
+  // ✅ FIXED: Debounced patient search with Redux
+  useEffect(() => {
+    if (debouncedSearchTerm && debouncedSearchTerm.length >= 2) {
+      searchPatients(debouncedSearchTerm);
+    } else {
+      // Clear search results when search term is too short
+      dispatch(clearSearchResults());
+    }
+  }, [debouncedSearchTerm, dispatch]);
+
+  // ✅ FIXED: Search for existing patients using Redux
   const searchPatients = async (searchTerm) => {
-    if (!searchTerm || searchTerm.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    setSearchingPatient(true);
     try {
-      const response = await apiService.patients.search(searchTerm);
-      if (response.success) {
-        setSearchResults(response.data || []);
-      }
+      // Use Redux thunk instead of direct API call
+      await dispatch(searchPatientsRedux(searchTerm));
     } catch (error) {
       console.error('Patient search failed:', error);
-      setSearchResults([]);
-    } finally {
-      setSearchingPatient(false);
     }
   };
 
-  // Handle patient selection from search results
-  const selectPatient = (patient) => {
-    // Fill form with selected patient data
-    Object.keys(patient).forEach(key => {
-      if (key === 'address' && patient.address) {
-        setValue('street', patient.address.street || '');
-        setValue('city', patient.address.city || '');
-        setValue('state', patient.address.state || '');
-        setValue('zipCode', patient.address.zipCode || '');
-        setValue('country', patient.address.country || 'Rwanda');
-      } else if (key === 'emergencyContact' && patient.emergencyContact) {
-        setValue('emergencyContactName', patient.emergencyContact.name || '');
-        setValue('emergencyContactRelationship', patient.emergencyContact.relationship || '');
-        setValue('emergencyContactPhone', patient.emergencyContact.phoneNumber || '');
-      } else if (key === 'referringPhysician' && patient.referringPhysician) {
-        setValue('referringPhysicianName', patient.referringPhysician.name || '');
-        setValue('referringPhysicianLicense', patient.referringPhysician.licenseNumber || '');
-        setValue('referringPhysicianDepartment', patient.referringPhysician.department || '');
-      } else if (key === 'allergies' && Array.isArray(patient.allergies)) {
-        setValue('allergies', patient.allergies.join(', '));
-      } else if (key === 'dateOfBirth' && patient.dateOfBirth) {
-        setValue('dateOfBirth', new Date(patient.dateOfBirth).toISOString().split('T')[0]);
-      } else {
-        setValue(key, patient[key] || '');
-      }
-    });
+  // ✅ FIXED: Handle patient selection from search results with cache clearing
+  const selectPatient = async (patient) => {
+    setSelectedPatientLoading(true);
+    setPatientSelected(false);
+    
+    try {
+      // Fill form with selected patient data
+      Object.keys(patient).forEach(key => {
+        if (key === 'address' && patient.address) {
+          setValue('street', patient.address.street || '');
+          setValue('city', patient.address.city || '');
+          setValue('state', patient.address.state || '');
+          setValue('zipCode', patient.address.zipCode || '');
+          setValue('country', patient.address.country || 'Rwanda');
+        } else if (key === 'emergencyContact' && patient.emergencyContact) {
+          setValue('emergencyContactName', patient.emergencyContact.name || '');
+          setValue('emergencyContactRelationship', patient.emergencyContact.relationship || '');
+          setValue('emergencyContactPhone', patient.emergencyContact.phoneNumber || '');
+        } else if (key === 'referringPhysician' && patient.referringPhysician) {
+          setValue('referringPhysicianName', patient.referringPhysician.name || '');
+          setValue('referringPhysicianLicense', patient.referringPhysician.licenseNumber || '');
+          setValue('referringPhysicianDepartment', patient.referringPhysician.department || '');
+        } else if (key === 'allergies' && Array.isArray(patient.allergies)) {
+          setValue('allergies', patient.allergies.join(', '));
+        } else if (key === 'dateOfBirth' && patient.dateOfBirth) {
+          setValue('dateOfBirth', new Date(patient.dateOfBirth).toISOString().split('T')[0]);
+        } else {
+          setValue(key, patient[key] || '');
+        }
+      });
 
-    setIsNewPatient(false);
-    setSearchResults([]);
-    setSearchTerm('');
+      setIsNewPatient(false);
+      setSearchTerm('');
+      setPatientSelected(true);
+      
+      // ✅ FIX: Clear search cache in Redux
+      dispatch(clearSearchResults());
+      
+      // Clear saved draft since we selected a patient
+      localStorage.removeItem(FORM_STORAGE_KEY);
+      
+    } catch (error) {
+      console.error('Failed to select patient:', error);
+    } finally {
+      setSelectedPatientLoading(false);
+    }
   };
 
   const handleFormSubmit = (data) => {
     // Transform form data to match backend Patient model structure
     const patientData = {
       // Basic information
-      patientId: data.patientId || undefined, // Let backend auto-generate if empty
+      patientId: data.patientId || undefined,
       firstName: data.firstName.trim(),
       lastName: data.lastName.trim(),
       dateOfBirth: data.dateOfBirth || undefined,
@@ -230,6 +1091,9 @@ const PatientForm = ({
       }
     });
 
+    // Clear saved form data on successful submit
+    localStorage.removeItem(FORM_STORAGE_KEY);
+    
     onSubmit(patientData);
   };
 
@@ -259,46 +1123,79 @@ const PatientForm = ({
     }
   }, [watchedData.dateOfBirth, setValue]);
 
+  // Clear saved draft
+  const clearDraft = () => {
+    localStorage.removeItem(FORM_STORAGE_KEY);
+    reset();
+  };
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Patient Information</h3>
-        <p className="text-sm text-gray-600">
-          Search for an existing patient or create a new patient record
-        </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-4 border border-white/30">
+          <User className="w-8 h-8 text-white" />
+        </div>
+        <h3 className="text-xl font-semibold text-white mb-2">Patient Information</h3>
+        <p className="text-blue-200">Search for an existing patient or create a new patient record</p>
       </div>
 
+      {/* Error Display */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-400 mr-2" />
-            <span className="text-red-800 text-sm">{error}</span>
+        <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4">
+          <div className="flex items-center text-red-200">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            <span className="text-sm">{error}</span>
           </div>
         </div>
       )}
 
-      {/* Patient Search/Type Selection */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-        <div className="flex items-center space-x-4 mb-4">
-          <label className="flex items-center">
+      {/* Draft notification */}
+      {isDirty && isNewPatient && (
+        <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-blue-200">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              <span className="text-sm">Form data is being auto-saved</span>
+            </div>
+            <button
+              type="button"
+              onClick={clearDraft}
+              className="text-blue-200 hover:text-white text-sm font-medium"
+            >
+              Clear draft
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Patient Type Selection */}
+      <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-6">
+        <div className="flex items-center justify-center space-x-8 mb-6">
+          <label className="flex items-center cursor-pointer group">
             <input
               type="radio"
               checked={!isNewPatient}
               onChange={() => setIsNewPatient(false)}
-              className="mr-2"
+              className="mr-3 w-4 h-4 text-blue-500"
             />
-            <UserCheck className="w-4 h-4 mr-2" />
-            <span className="text-sm font-medium">Existing Patient</span>
+            <div className="flex items-center text-white group-hover:text-blue-200">
+              <UserCheck className="w-5 h-5 mr-2" />
+              <span className="font-medium">Existing Patient</span>
+            </div>
           </label>
-          <label className="flex items-center">
+          
+          <label className="flex items-center cursor-pointer group">
             <input
               type="radio"
               checked={isNewPatient}
               onChange={() => setIsNewPatient(true)}
-              className="mr-2"
+              className="mr-3 w-4 h-4 text-blue-500"
             />
-            <Plus className="w-4 h-4 mr-2" />
-            <span className="text-sm font-medium">New Patient</span>
+            <div className="flex items-center text-white group-hover:text-blue-200">
+              <Plus className="w-5 h-5 mr-2" />
+              <span className="font-medium">New Patient</span>
+            </div>
           </label>
         </div>
 
@@ -307,40 +1204,55 @@ const PatientForm = ({
           <div className="relative">
             <div className="flex items-center space-x-2">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-3 h-5 w-5 text-blue-300" />
                 <input
                   type="text"
                   placeholder="Search by Patient ID, name, or phone..."
                   value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    searchPatients(e.target.value);
-                  }}
-                  className="input pl-10"
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50"
                 />
               </div>
-              {searchingPatient && <LoadingSpinner size="sm" />}
+              {(isSearchingPatients || selectedPatientLoading || patientsLoading) && (
+                <LoadingSpinner size="sm" color="white" />
+              )}
             </div>
 
-            {/* Search Results */}
+            {/* Patient selected indicator */}
+            {patientSelected && !selectedPatientLoading && (
+              <div className="mt-3 flex items-center text-green-400">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                <span className="text-sm font-medium">Patient selected successfully</span>
+              </div>
+            )}
+
+            {/* ✅ FIXED: Search Results from Redux */}
             {searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 z-10 mt-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
                 {searchResults.map((patient) => (
                   <button
                     key={patient._id}
                     type="button"
                     onClick={() => selectPatient(patient)}
-                    className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                    className="w-full text-left p-4 hover:bg-white/10 border-b border-white/10 last:border-b-0 focus:bg-white/10 focus:outline-none transition-colors"
                   >
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-white">
                       {patient.firstName} {patient.lastName}
                     </div>
-                    <div className="text-sm text-gray-600">
-                      ID: {patient.patientId} • Age: {patient.age || 'Unknown'} • 
-                      Phone: {patient.phoneNumber || 'N/A'}
+                    <div className="text-sm text-blue-200">
+                      ID: {patient.patientId} • Age: {patient.age || 'Unknown'} • Phone: {patient.phoneNumber || 'N/A'}
                     </div>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* No results */}
+            {debouncedSearchTerm && debouncedSearchTerm.length >= 2 && searchResults.length === 0 && !isSearchingPatients && !patientsLoading && (
+              <div className="absolute top-full left-0 right-0 z-10 mt-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-4">
+                <p className="text-sm text-blue-200 text-center">
+                  No patients found matching "{debouncedSearchTerm}"
+                </p>
               </div>
             )}
           </div>
@@ -348,66 +1260,61 @@ const PatientForm = ({
       </div>
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-        {/* Basic Patient Information */}
-        <div className="border border-gray-200 rounded-lg p-4">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Basic Information</h4>
+        {/* Basic Information */}
+        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-6">
+          <h4 className="text-lg font-medium text-white mb-6 flex items-center">
+            <User className="w-5 h-5 mr-2" />
+            Basic Information
+          </h4>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Patient ID */}
             <div>
-              <label htmlFor="patientId" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Patient ID {!isNewPatient && '*'}
               </label>
               <input
                 {...register('patientId', {
                   ...((!isNewPatient) && {
-                    required: 'Patient ID is required for existing patients',
-                    pattern: {
-                      value: PATIENT_ID_FORMAT,
-                      message: 'Invalid Patient ID format (PAT-YYYYMMDD-XXX)'
-                    }
+                    required: 'Patient ID is required for existing patients'
                   })
                 })}
                 type="text"
-                className={`input ${errors.patientId ? 'input-error' : ''}`}
+                className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50 ${
+                  errors.patientId ? 'border-red-500/50' : 'border-white/30'
+                }`}
                 placeholder={isNewPatient ? "Auto-generated" : "PAT-20240101-001"}
                 disabled={isNewPatient}
               />
               {errors.patientId && (
-                <p className="mt-1 text-sm text-red-600">{errors.patientId.message}</p>
-              )}
-              {isNewPatient && (
-                <p className="mt-1 text-sm text-gray-500">Patient ID will be auto-generated</p>
+                <p className="mt-1 text-sm text-red-300">{errors.patientId.message}</p>
               )}
             </div>
 
             {/* First Name */}
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 First Name *
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  {...register('firstName', { 
-                    required: 'First name is required',
-                    maxLength: { value: 50, message: 'First name must be less than 50 characters' }
-                  })}
-                  type="text"
-                  className={`input pl-10 ${errors.firstName ? 'input-error' : ''}`}
-                  placeholder="Enter first name"
-                />
-              </div>
+              <input
+                {...register('firstName', { 
+                  required: 'First name is required',
+                  maxLength: { value: 50, message: 'First name must be less than 50 characters' }
+                })}
+                type="text"
+                className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50 ${
+                  errors.firstName ? 'border-red-500/50' : 'border-white/30'
+                }`}
+                placeholder="Enter first name"
+              />
               {errors.firstName && (
-                <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.firstName.message}</p>
               )}
             </div>
 
             {/* Last Name */}
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Last Name *
               </label>
               <input
@@ -416,80 +1323,56 @@ const PatientForm = ({
                   maxLength: { value: 50, message: 'Last name must be less than 50 characters' }
                 })}
                 type="text"
-                className={`input ${errors.lastName ? 'input-error' : ''}`}
+                className={`w-full px-4 py-3 bg-white/10 border rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50 ${
+                  errors.lastName ? 'border-red-500/50' : 'border-white/30'
+                }`}
                 placeholder="Enter last name"
               />
               {errors.lastName && (
-                <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.lastName.message}</p>
               )}
             </div>
 
             {/* Date of Birth */}
             <div>
-              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Date of Birth
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Calendar className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  {...register('dateOfBirth', {
-                    validate: (value) => {
-                      if (!value) return true; // Optional field
-                      const date = new Date(value);
-                      const today = new Date();
-                      if (date > today) return 'Date of birth cannot be in the future';
-                      if (date < new Date('1900-01-01')) return 'Please enter a valid date of birth';
-                      return true;
-                    }
-                  })}
-                  type="date"
-                  className={`input pl-10 ${errors.dateOfBirth ? 'input-error' : ''}`}
-                  max={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-              {errors.dateOfBirth && (
-                <p className="mt-1 text-sm text-red-600">{errors.dateOfBirth.message}</p>
-              )}
+              <input
+                {...register('dateOfBirth')}
+                type="date"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+                max={new Date().toISOString().split('T')[0]}
+              />
             </div>
 
             {/* Age */}
             <div>
-              <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Age
               </label>
               <input
                 {...register('age', {
                   min: { value: 0, message: 'Age must be positive' },
-                  max: { value: 150, message: 'Please enter a valid age' },
-                  pattern: {
-                    value: /^\d+$/,
-                    message: 'Age must be a number'
-                  }
+                  max: { value: 150, message: 'Please enter a valid age' }
                 })}
                 type="number"
-                className={`input ${errors.age ? 'input-error' : ''}`}
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
                 placeholder="Auto-calculated from DOB"
-                min="0"
-                max="150"
               />
-              {errors.age && (
-                <p className="mt-1 text-sm text-red-600">{errors.age.message}</p>
-              )}
             </div>
 
             {/* Gender */}
             <div>
-              <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Gender
               </label>
               <select
                 {...register('gender')}
-                className="input"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
               >
                 {GENDER_OPTIONS.map(option => (
-                  <option key={option.value} value={option.value}>
+                  <option key={option.value} value={option.value} className="bg-blue-800">
                     {option.label}
                   </option>
                 ))}
@@ -499,259 +1382,73 @@ const PatientForm = ({
         </div>
 
         {/* Contact Information */}
-        <div className="border border-gray-200 rounded-lg p-4">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Contact Information</h4>
+        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-6">
+          <h4 className="text-lg font-medium text-white mb-6 flex items-center">
+            <Phone className="w-5 h-5 mr-2" />
+            Contact Information
+          </h4>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Phone */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Phone Number
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Phone className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  {...register('phoneNumber', {
-                    pattern: {
-                      value: VALIDATION_RULES.PHONE.PATTERN,
-                      message: VALIDATION_RULES.PHONE.MESSAGE
-                    }
-                  })}
-                  type="tel"
-                  className={`input pl-10 ${errors.phoneNumber ? 'input-error' : ''}`}
-                  placeholder="+250 XXX XXX XXX"
-                />
-              </div>
-              {errors.phoneNumber && (
-                <p className="mt-1 text-sm text-red-600">{errors.phoneNumber.message}</p>
-              )}
+              <input
+                {...register('phoneNumber')}
+                type="tel"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+                placeholder="+250 XXX XXX XXX"
+              />
             </div>
 
-            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Email Address
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  {...register('email', {
-                    pattern: {
-                      value: VALIDATION_RULES.EMAIL.PATTERN,
-                      message: VALIDATION_RULES.EMAIL.MESSAGE
-                    }
-                  })}
-                  type="email"
-                  className={`input pl-10 ${errors.email ? 'input-error' : ''}`}
-                  placeholder="patient@example.com"
-                />
-              </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Address */}
-          <div className="mt-4 space-y-4">
-            <div>
-              <label htmlFor="street" className="block text-sm font-medium text-gray-700 mb-2">
-                Street Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MapPin className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  {...register('street')}
-                  type="text"
-                  className="input pl-10"
-                  placeholder="Street address"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
-                  City
-                </label>
-                <input
-                  {...register('city')}
-                  type="text"
-                  className="input"
-                  placeholder="City"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
-                  Province/State
-                </label>
-                <input
-                  {...register('state')}
-                  type="text"
-                  className="input"
-                  placeholder="Province"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700 mb-2">
-                  Postal Code
-                </label>
-                <input
-                  {...register('zipCode')}
-                  type="text"
-                  className="input"
-                  placeholder="Postal code"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
-                Country
-              </label>
               <input
-                {...register('country')}
-                type="text"
-                className="input"
-                defaultValue="Rwanda"
+                {...register('email')}
+                type="email"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+                placeholder="patient@example.com"
               />
             </div>
           </div>
-        </div>
-
-        {/* Medical Information */}
-        <div className="border border-gray-200 rounded-lg p-4">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Medical Information</h4>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="bloodType" className="block text-sm font-medium text-gray-700 mb-2">
-                Blood Type
-              </label>
-              <select
-                {...register('bloodType')}
-                className="input"
-              >
-                {BLOOD_TYPES.map(type => (
-                  <option key={type} value={type}>
-                    {type === 'unknown' ? 'Unknown' : type}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="allergies" className="block text-sm font-medium text-gray-700 mb-2">
-                Allergies
-              </label>
-              <input
-                {...register('allergies')}
-                type="text"
-                className="input"
-                placeholder="Comma-separated list of allergies"
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Separate multiple allergies with commas
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Emergency Contact - Collapsible */}
-        <div className="border border-gray-200 rounded-lg p-4">
-          <button
-            type="button"
-            onClick={() => setShowEmergencyContact(!showEmergencyContact)}
-            className="flex items-center justify-between w-full text-left"
-          >
-            <h4 className="text-md font-medium text-gray-900">Emergency Contact</h4>
-            <span className="text-gray-400">
-              {showEmergencyContact ? '−' : '+'}
-            </span>
-          </button>
-          
-          {showEmergencyContact && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Name
-                </label>
-                <input
-                  {...register('emergencyContactName')}
-                  type="text"
-                  className="input"
-                  placeholder="Emergency contact name"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="emergencyContactRelationship" className="block text-sm font-medium text-gray-700 mb-2">
-                  Relationship
-                </label>
-                <input
-                  {...register('emergencyContactRelationship')}
-                  type="text"
-                  className="input"
-                  placeholder="e.g., Spouse, Parent, Sibling"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number
-                </label>
-                <input
-                  {...register('emergencyContactPhone')}
-                  type="tel"
-                  className="input"
-                  placeholder="Emergency contact phone"
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Test Information */}
-        <div className="border-t border-gray-200 pt-6">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Test Information</h4>
+        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-6">
+          <h4 className="text-lg font-medium text-white mb-6 flex items-center">
+            <TestTube className="w-5 h-5 mr-2" />
+            Test Information
+          </h4>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Priority */}
             <div>
-              <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Priority
               </label>
               <select
                 {...register('priority')}
-                className="input"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
               >
                 {Object.entries(TEST_PRIORITIES).map(([key, value]) => (
-                  <option key={value} value={value}>
+                  <option key={value} value={value} className="bg-blue-800">
                     {key.charAt(0) + key.slice(1).toLowerCase()}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Sample Type */}
             <div>
-              <label htmlFor="sampleType" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Sample Type
               </label>
               <select
                 {...register('sampleType')}
-                className="input"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
               >
                 {Object.entries(SAMPLE_TYPES).map(([key, value]) => (
-                  <option key={value} value={value}>
+                  <option key={value} value={value} className="bg-blue-800">
                     {key.split('_').map(word => 
                       word.charAt(0) + word.slice(1).toLowerCase()
                     ).join(' ')}
@@ -760,94 +1457,66 @@ const PatientForm = ({
               </select>
             </div>
           </div>
-        </div>
 
-        {/* Clinical Notes */}
-        <div className="border-t border-gray-200 pt-6">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Clinical Notes</h4>
-          
-          <div className="space-y-4">
+          {/* Clinical Notes */}
+          <div className="mt-6 space-y-4">
             <div>
-              <label htmlFor="symptoms" className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Symptoms
               </label>
               <textarea
                 {...register('symptoms')}
                 rows={2}
-                className="input"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
                 placeholder="Describe current symptoms"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-blue-200 mb-2">
                   Duration
                 </label>
                 <input
                   {...register('duration')}
                   type="text"
-                  className="input"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
                   placeholder="e.g., 3 days, 1 week"
                 />
               </div>
 
               <div>
-                <label htmlFor="travelHistory" className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-blue-200 mb-2">
                   Travel History
                 </label>
                 <input
                   {...register('travelHistory')}
                   type="text"
-                  className="input"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
                   placeholder="Recent travel to endemic areas"
                 />
               </div>
-            </div>
-
-            <div>
-              <label htmlFor="medications" className="block text-sm font-medium text-gray-700 mb-2">
-                Current Medications
-              </label>
-              <textarea
-                {...register('medications')}
-                rows={2}
-                className="input"
-                placeholder="List current medications"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="additionalNotes" className="block text-sm font-medium text-gray-700 mb-2">
-                Additional Notes
-              </label>
-              <textarea
-                {...register('additionalNotes')}
-                rows={3}
-                className="input"
-                placeholder="Any additional clinical information"
-              />
             </div>
           </div>
         </div>
 
         {/* Submit Button */}
-        <div className="flex justify-end pt-6 border-t border-gray-200">
+        <div className="text-center pt-6">
           <button
             type="submit"
             disabled={loading || isSubmitting}
-            className="btn btn-primary"
+            className="bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-blue-50 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
           >
             {loading || isSubmitting ? (
-              <div className="flex items-center">
-                <LoadingSpinner size="sm" color="white" />
+              <div className="flex items-center justify-center">
+                <LoadingSpinner size="sm" color="blue" />
                 <span className="ml-2">
                   {isNewPatient ? 'Creating...' : 'Updating...'}
                 </span>
               </div>
             ) : (
               <>
-                <FileText className="w-4 h-4 mr-2" />
+                <FileText className="w-5 h-5 mr-2 inline" />
                 {isNewPatient ? 'Create Patient & Test' : 'Update & Continue'}
               </>
             )}

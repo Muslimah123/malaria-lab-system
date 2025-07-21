@@ -28,7 +28,7 @@ services:
     ports:
       - "5001:5000"  # External port 5001, internal 5000
     volumes:
-      - ./DiagnosisApi/logs:/app/logs
+      - ./DiagnosisApi:/app  # Mount the entire app for hot-reloading
       - uploads_data:/app/shared_uploads  # Shared uploads with Node.js backend
     environment:
       - FLASK_ENV=development

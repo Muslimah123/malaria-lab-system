@@ -6,9 +6,8 @@ const DragDropZone = ({
   onDrop,
   onDragOver,
   onDragLeave,
-  onFileSelect,
+  onBrowseClick,
   dragActive = false,
-  fileInputRef,
   maxFiles = 10,
   maxFileSize = 10 * 1024 * 1024, // 10MB
   acceptedTypes = ['image/jpeg', 'image/png', 'image/tiff'],
@@ -39,8 +38,8 @@ const DragDropZone = ({
   };
 
   const handleClick = () => {
-    if (!disabled && fileInputRef?.current) {
-      fileInputRef.current.click();
+    if (!disabled) {
+      onBrowseClick();
     }
   };
 
@@ -51,109 +50,115 @@ const DragDropZone = ({
     }
   };
 
-  return (
-    <div
-      className={clsx(
-        'relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer',
-        dragActive 
-          ? 'border-primary-500 bg-primary-50' 
-          : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50',
-        disabled && 'opacity-50 cursor-not-allowed',
-        className
-      )}
-      onDrop={!disabled ? onDrop : undefined}
-      onDragOver={!disabled ? onDragOver : undefined}
-      onDragLeave={!disabled ? onDragLeave : undefined}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      aria-label="Upload files"
-    >
-      {/* Upload Icon */}
-      <div className={clsx(
-        'mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors',
-        dragActive 
-          ? 'bg-primary-100 text-primary-600' 
-          : 'bg-gray-100 text-gray-500'
-      )}>
-        {dragActive ? (
-          <FileImage className="w-8 h-8" />
-        ) : (
-          <Upload className="w-8 h-8" />
-        )}
-      </div>
-
-      {/* Main Text */}
-      <div className="mb-4">
-        <h3 className={clsx(
-          'text-lg font-medium mb-2',
-          dragActive ? 'text-primary-900' : 'text-gray-900'
-        )}>
-          {dragActive ? 'Drop files here' : 'Upload blood smear images'}
-        </h3>
-        <p className={clsx(
-          'text-sm',
-          dragActive ? 'text-primary-700' : 'text-gray-600'
-        )}>
-          {dragActive 
-            ? 'Release to upload files'
-            : 'Drag and drop files here, or click to browse'
-          }
-        </p>
-      </div>
-
-      {/* File Requirements */}
-      <div className="space-y-2 text-xs text-gray-500">
-        <div className="flex items-center justify-center space-x-4">
-          <div className="flex items-center">
-            <FileImage className="w-4 h-4 mr-1" />
-            <span>Max {maxFiles} files</span>
-          </div>
-          <div className="flex items-center">
-            <Info className="w-4 h-4 mr-1" />
-            <span>Up to {formatFileSize(maxFileSize)} each</span>
-          </div>
-        </div>
-        <p>Supported formats: {getAcceptedTypesDisplay()}</p>
-      </div>
-
-      {/* Quality Guidelines */}
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center">
-          <Info className="w-4 h-4 mr-1" />
-          Image Quality Guidelines
-        </h4>
-        <ul className="text-xs text-blue-800 space-y-1 text-left">
-          <li>• Use high-resolution images (minimum 1024x768)</li>
-          <li>• Ensure good lighting and clear focus</li>
-          <li>• Include multiple fields of view for better analysis</li>
-          <li>• Avoid blurry, overexposed, or underexposed images</li>
-        </ul>
-      </div>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept={acceptedTypes.join(',')}
-        onChange={(e) => onFileSelect && onFileSelect(e.target.files)}
-        className="hidden"
-        disabled={disabled}
-      />
-
-      {/* Loading overlay */}
-      {disabled && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
-          <div className="text-center">
-            <div className="inline-block w-6 h-6 border-2 border-gray-300 border-t-primary-600 rounded-full animate-spin mb-2" />
-            <p className="text-sm text-gray-600">Processing...</p>
-          </div>
-        </div>
+ 
+return (
+  <div
+    className={clsx(
+      'relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer upload-drag-zone',
+      dragActive 
+        ? 'border-white/50 bg-white/10 drag-active' 
+        : 'border-white/30 hover:border-white/40 hover:bg-white/5',
+      disabled && 'opacity-50 cursor-not-allowed',
+      className
+    )}
+    onDrop={!disabled ? onDrop : undefined}
+    onDragOver={!disabled ? onDragOver : undefined}
+    onDragLeave={!disabled ? onDragLeave : undefined}
+    onClick={handleClick}
+    onKeyDown={handleKeyDown}
+    role="button"
+    tabIndex={disabled ? -1 : 0}
+    aria-label="Upload files"
+  >
+    {/* Upload Icon with glassmorphism */}
+    <div className={clsx(
+      'mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all border',
+      dragActive 
+        ? 'bg-white/20 text-white border-white/30' 
+        : 'bg-white/10 text-blue-200 border-white/20'
+    )}>
+      {dragActive ? (
+        <FileImage className="w-8 h-8" />
+      ) : (
+        <Upload className="w-8 h-8" />
       )}
     </div>
-  );
+
+    {/* Main Text */}
+    <div className="mb-6">
+      <h3 className={clsx(
+        'text-lg font-medium mb-2',
+        dragActive ? 'text-white' : 'text-white'
+      )}>
+        {dragActive ? 'Drop files here' : 'Upload blood smear images'}
+      </h3>
+      <p className={clsx(
+        'text-sm',
+        dragActive ? 'text-blue-100' : 'text-blue-200'
+      )}>
+        {dragActive 
+          ? 'Release to upload files'
+          : 'Drag and drop files here, or click to browse'
+        }
+      </p>
+    </div>
+
+    {/* File Requirements */}
+    <div className="bg-white/5 rounded-lg p-4 mb-4 border border-white/20">
+      <div className="grid grid-cols-3 gap-4 text-xs text-blue-200 mb-3">
+        <div className="flex items-center justify-center space-x-1">
+          <FileImage className="w-4 h-4" />
+          <span>Max {maxFiles} files</span>
+        </div>
+        <div className="flex items-center justify-center space-x-1">
+          <Upload className="w-4 h-4" />
+          <span>Up to {formatFileSize(maxFileSize)} each</span>
+        </div>
+        <div className="flex items-center justify-center space-x-1">
+          <FileImage className="w-4 h-4" />
+          <span>{getAcceptedTypesDisplay()}</span>
+        </div>
+      </div>
+    </div>
+
+    {/* Quality Guidelines */}
+    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+      <h4 className="text-sm font-medium text-blue-200 mb-3 flex items-center justify-center">
+        <FileImage className="w-4 h-4 mr-2" />
+        Image Quality Guidelines
+      </h4>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-blue-300">
+        <div>
+          <p className="font-medium mb-2 text-green-300">✓ Good Quality</p>
+          <ul className="space-y-1 text-left">
+            <li>• High resolution (≥1024px)</li>
+            <li>• Clear focus and lighting</li>
+            <li>• Multiple fields of view</li>
+          </ul>
+        </div>
+        <div>
+          <p className="font-medium mb-2 text-red-300">✗ Avoid</p>
+          <ul className="space-y-1 text-left">
+            <li>• Blurry or out-of-focus</li>
+            <li>• Over/under exposed</li>
+            <li>• Poor color quality</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+
+    {/* Loading overlay */}
+    {disabled && (
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center rounded-xl">
+        <div className="text-center">
+          <div className="upload-spinner mb-2 mx-auto" />
+          <p className="text-sm text-blue-200">Processing...</p>
+        </div>
+      </div>
+    )}
+  </div>
+);
 };
 
 // Specialized drag drop zones

@@ -1,3 +1,5 @@
+//src/components/common/Toast.jsx
+// This component displays toast notifications for various events in the application.
 import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';

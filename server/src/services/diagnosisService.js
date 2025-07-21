@@ -295,9 +295,16 @@ class DiagnosisService {
       // Validate response structure
       this.validateFlaskResponse(responseData);
 
-      // Process the response according to your Flask API format
+      const mapApiStatus = (status) => {
+        const upperStatus = status.toUpperCase();
+        if (upperStatus === 'POSITIVE') return 'POS';
+        if (upperStatus === 'NEGATIVE') return 'NEG';
+        return upperStatus;
+      };
+
+      // Process the response according to Flask API format
       const processedResult = {
-        status: responseData.status, // 'POS' or 'NEG'
+        status: mapApiStatus(responseData.status), // 'POS' or 'NEG'
         most_probable_parasite: responseData.most_probable_parasite || null,
         parasite_wbc_ratio: responseData.parasite_wbc_ratio || 0,
         detections: this.processDetections(responseData.detections || []),
@@ -328,11 +335,12 @@ class DiagnosisService {
       throw new Error('Missing required field: status');
     }
 
-    if (!['POS', 'NEG'].includes(responseData.status)) {
+    const validStatusValues = ['POS', 'NEG', 'POSITIVE', 'NEGATIVE'];
+    if (!validStatusValues.includes(responseData.status.toUpperCase())) {
       throw new Error(`Invalid status value: ${responseData.status}`);
     }
 
-    if (responseData.status === 'POS') {
+    if (responseData.status.toUpperCase().startsWith('POS')) {
       if (!responseData.most_probable_parasite) {
         throw new Error('Missing most_probable_parasite for positive result');
       }

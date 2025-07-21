@@ -101,6 +101,24 @@ export const resetPassword = createAsyncThunk(
     }
   }
 );
+// Add this with your other async thunks
+export const verifySession = createAsyncThunk(
+  'auth/verifySession',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiService.auth.verifySession();
+      
+      // If your backend returns { valid: true } or similar
+      if (!response.data.valid) {
+        throw new Error('Session invalid');
+      }
+      
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  }
+);
 
 // Initial state
 const initialState = {

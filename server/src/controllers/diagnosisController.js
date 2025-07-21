@@ -10,12 +10,6 @@ const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorTypes');
 const { socketService } = require('../socket');
 
-// const pdfPath = await reportService.generatePDFReport(diagnosisResult);
-// res.download(pdfPath);
-
-// const { getIO } = require('../config/socket');
-// getIO().to(testId).emit('diagnosisComplete', { testId, result: diagnosisResult });
-
 class DiagnosisController {
   /**
    * Get all diagnosis results with filtering
@@ -275,107 +269,177 @@ class DiagnosisController {
     }
   }
 
-  /**
-   * Get annotated images for diagnosis result
-   */
-  async getDiagnosisImages(req, res, next) {
-    try {
-      const { testId } = req.params;
-      const { imageId } = req.query;
-      const user = req.user;
+/**
+ * Get annotated images for diagnosis result
+ */
+async getDiagnosisImages(req, res, next) {
+  try {
+    const { testId } = req.params;
+    const { imageId } = req.query;
+    const user = req.user;
 
-      const result = await DiagnosisResult.findOne({ testId: testId.toUpperCase() })
-        .populate('test', 'testId images technician');
+    const result = await DiagnosisResult.findOne({ testId: testId.toUpperCase() })
+      .populate('test', 'testId technician _id');
 
-      if (!result) {
-        return res.status(404).json({
-          success: false,
-          message: 'Diagnosis result not found'
-        });
-      }
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Diagnosis result not found'
+      });
+    }
 
-      // Check permissions
-      const isTestOwner = result.test.technician.toString() === user._id.toString();
-      const isSupervisor = ['supervisor', 'admin'].includes(user.role);
+    // Check permissions
+    const isTestOwner = result.test.technician.toString() === user._id.toString();
+    const isSupervisor = ['supervisor', 'admin'].includes(user.role);
 
-      if (!isTestOwner && !isSupervisor && !user.permissions.canViewAllTests) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to view diagnosis images'
-        });
-      }
+    if (!isTestOwner && !isSupervisor && !user.permissions.canViewAllTests) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to view diagnosis images'
+      });
+    }
 
-      // Filter detections if specific image requested
-      let detections = result.detections;
-      if (imageId) {
-        detections = detections.filter(d => d.imageId === imageId);
-      }
+    // Filter detections if specific image requested
+    let detections = result.detections;
+    if (imageId) {
+      detections = detections.filter(d => d.imageId === imageId);
+    }
 
-      // Build image data with annotations
-      const images = await Promise.all(detections.map(async (detection) => {
-        try {
-          // Find corresponding uploaded image
-          const uploadedImage = result.test.images.find(img => 
-            img.filename.includes(detection.imageId) || detection.imageId.includes(img.filename)
-          );
+    // Try to find the upload session to get actual file paths
+    const uploadSession = await fileService.getUploadSessionForTest(result.test._id);
 
-          if (!uploadedImage) {
-            return null;
-          }
+    // Base URL for images
+    const baseUrl = process.env.API_URL || 'http://localhost:5000';
 
-          // Generate image URL
-          const imageUrl = await fileService.getImageUrl(uploadedImage.path);
+    // Build image data from detections
+    const images = await Promise.all(detections.map(async (detection, index) => {
+      let imageUrl = null;
 
-          return {
-            imageId: detection.imageId,
-            originalFilename: detection.originalFilename || uploadedImage.originalName,
-            url: imageUrl,
-            annotations: {
-              parasites: detection.parasitesDetected.map(parasite => ({
-                type: parasite.type,
-                confidence: parasite.confidence,
-                boundingBox: parasite.bbox,
-                typeFullName: result.parasiteTypeNames[parasite.type]
-              })),
-              summary: {
-                parasiteCount: detection.parasiteCount,
-                wbcCount: detection.whiteBloodCellsDetected,
-                parasiteWbcRatio: detection.parasiteWbcRatio
-              }
-            },
-            metadata: {
-              size: uploadedImage.size,
-              uploadedAt: uploadedImage.uploadedAt
-            }
-          };
-        } catch (imageError) {
-          logger.warn(`Failed to process image ${detection.imageId}:`, imageError);
-          return null;
+      // Try to find the uploaded file that matches this detection
+      if (uploadSession && uploadSession.files) {
+        const uploadedFile = uploadSession.files.find(file => 
+          file.filename === detection.imageId ||
+          file.filename.includes(detection.imageId) ||
+          detection.imageId.includes(file.filename) ||
+          file.originalName === detection.originalFilename
+        );
+
+        if (uploadedFile) {
+          const relativePath = await fileService.getImageUrl(uploadedFile.path);
+          imageUrl = `${baseUrl}${relativePath}`;
         }
-      }));
+      }
 
-      // Filter out null results
-      const validImages = images.filter(img => img !== null);
+      // Fallback URL with full base URL
+      if (!imageUrl) {
+        imageUrl = `${baseUrl}/uploads/images/${detection.imageId}`;
+      }
 
-      res.json({
-        success: true,
-        data: {
-          testId: result.testId,
-          status: result.finalStatus,
-          severity: result.finalSeverity,
-          images: validImages,
-          totalImages: validImages.length,
-          totalParasites: result.totalParasitesDetected,
-          totalWBC: result.totalWbcDetected
+      // Process parasites with proper confidence values
+      const parasites = (detection.parasitesDetected || []).map(parasite => {
+        // Ensure confidence is properly formatted
+        let confidence = parasite.confidence || 0;
+        
+        // If confidence is 0, it might be stored in a different field
+        if (confidence === 0 && parasite.score) {
+          confidence = parasite.score;
         }
+        
+        // Ensure confidence is in 0-1 range (not percentage)
+        if (confidence > 1) {
+          confidence = confidence / 100;
+        }
+
+        return {
+          type: parasite.type,
+          confidence: confidence,
+          boundingBox: parasite.bbox || parasite.bounding_box || {
+            x1: parasite.x1,
+            y1: parasite.y1,
+            x2: parasite.x2,
+            y2: parasite.y2
+          },
+          typeFullName: {
+            'PF': 'Plasmodium Falciparum',
+            'PM': 'Plasmodium Malariae',
+            'PO': 'Plasmodium Ovale',
+            'PV': 'Plasmodium Vivax'
+          }[parasite.type] || parasite.type
+        };
       });
 
-    } catch (error) {
-      logger.error('Get diagnosis images error:', error);
-      next(new AppError('Failed to retrieve diagnosis images', 500));
-    }
-  }
+      // Process WBCs if they exist in the detection data
+      const wbcs = [];
+      
+      // Check if WBC data exists in different possible locations
+      if (detection.whiteBloodCellsDetected && detection.wbc_bboxes) {
+        // If we have WBC bounding boxes
+        detection.wbc_bboxes.forEach((bbox, idx) => {
+          wbcs.push({
+            type: 'WBC',
+            confidence: 0.95, // Default high confidence for WBCs
+            boundingBox: bbox,
+            typeFullName: 'White Blood Cell'
+          });
+        });
+      } else if (detection.wbc_detections) {
+        // Alternative format
+        detection.wbc_detections.forEach((wbc) => {
+          wbcs.push({
+            type: 'WBC',
+            confidence: wbc.confidence || 0.95,
+            boundingBox: wbc.bbox || wbc.bounding_box,
+            typeFullName: 'White Blood Cell'
+          });
+        });
+      }
 
+      // Log for debugging
+      logger.debug(`Image ${detection.imageId}: ${parasites.length} parasites, ${wbcs.length} WBCs`);
+      if (parasites.length > 0) {
+        logger.debug(`First parasite confidence: ${parasites[0].confidence}`);
+      }
+
+      return {
+        imageId: detection.imageId,
+        originalFilename: detection.originalFilename || `blood_smear_${index + 1}.jpg`,
+        url: imageUrl,
+        annotations: {
+          parasites: parasites,
+          wbcs: wbcs, // Include WBC annotations
+          summary: {
+            parasiteCount: detection.parasiteCount || parasites.length || 0,
+            wbcCount: detection.whiteBloodCellsDetected || wbcs.length || 0,
+            parasiteWbcRatio: detection.parasiteWbcRatio || 0
+          }
+        }
+      };
+    }));
+
+    // Log summary for debugging
+    logger.info(`Returning ${images.length} images for test ${testId}`);
+    const totalParasites = images.reduce((sum, img) => sum + img.annotations.parasites.length, 0);
+    const totalWBCs = images.reduce((sum, img) => sum + img.annotations.wbcs.length, 0);
+    logger.info(`Total annotations: ${totalParasites} parasites, ${totalWBCs} WBCs`);
+
+    res.json({
+      success: true,
+      data: {
+        testId: result.testId,
+        status: result.finalStatus || result.status,
+        severity: result.finalSeverity || result.severity?.level,
+        images: images,
+        totalImages: images.length,
+        totalParasites: result.totalParasitesDetected || totalParasites,
+        totalWBC: result.totalWbcDetected || totalWBCs
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get diagnosis images error:', error);
+    next(new AppError('Failed to retrieve diagnosis images', 500));
+  }
+}
   /**
    * Get diagnosis statistics
    */

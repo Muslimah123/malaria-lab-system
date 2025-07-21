@@ -1,4 +1,4 @@
-// 📁 server/src/socket/index.js
+// server/src/socket/index.js
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -9,9 +9,10 @@ const { SOCKET_EVENTS, USER_ROLES } = require('../utils/constants');
 class SocketService {
   constructor() {
     this.io = null;
-    this.connectedUsers = new Map(); // userId -> socketId mapping
+    this.connectedUsers = new Map(); // userId -> Set of socketIds
     this.userSockets = new Map(); // socketId -> user info mapping
     this.rooms = new Map(); // room management
+    this.uploadSessions = new Map(); // sessionId -> Set of socketIds
   }
 
   /**
@@ -44,6 +45,7 @@ class SocketService {
         const token = socket.handshake.auth.token;
         
         if (!token) {
+          logger.warn('Socket connection attempted without token');
           return next(new Error('Authentication token missing'));
         }
 
@@ -103,6 +105,15 @@ class SocketService {
         this.handleLeaveRoom(socket, roomName);
       });
 
+      // ✅ NEW: Upload session handlers
+      socket.on('joinUploadSession', (sessionId) => {
+        this.handleUploadSessionJoin(socket, sessionId);
+      });
+
+      socket.on('leaveUploadSession', (sessionId) => {
+        this.handleUploadSessionLeave(socket, sessionId);
+      });
+
       socket.on('test-subscribe', (testId) => {
         this.handleTestSubscription(socket, testId);
       });
@@ -126,7 +137,10 @@ class SocketService {
     const userId = user._id.toString();
 
     // Store connection mapping
-    this.connectedUsers.set(userId, socket.id);
+    if (!this.connectedUsers.has(userId)) {
+      this.connectedUsers.set(userId, new Set());
+    }
+    this.connectedUsers.get(userId).add(socket.id);
     this.userSockets.set(socket.id, {
       userId,
       username: user.username,
@@ -185,8 +199,24 @@ class SocketService {
       const { userId, username, role } = userInfo;
 
       // Remove from mappings
-      this.connectedUsers.delete(userId);
+      const userSockets = this.connectedUsers.get(userId);
+      if (userSockets) {
+        userSockets.delete(socket.id);
+        if (userSockets.size === 0) {
+          this.connectedUsers.delete(userId);
+        }
+      }
       this.userSockets.delete(socket.id);
+
+      // Remove from upload sessions
+      this.uploadSessions.forEach((sockets, sessionId) => {
+        if (sockets.has(socket.id)) {
+          sockets.delete(socket.id);
+          if (sockets.size === 0) {
+            this.uploadSessions.delete(sessionId);
+          }
+        }
+      });
 
       // Notify supervisors about technician disconnections
       if (role === USER_ROLES.TECHNICIAN) {
@@ -215,6 +245,71 @@ class SocketService {
 
       logger.info(`User disconnected: ${username} (${socket.id}) - Reason: ${reason}`);
     }
+  }
+
+  /**
+   * ✅ NEW: Handle joining upload session
+   */
+  handleUploadSessionJoin(socket, sessionId) {
+    const userInfo = this.userSockets.get(socket.id);
+    
+    if (!userInfo) {
+      logger.warn('Upload session join attempted without authenticated socket');
+      return;
+    }
+
+    const roomName = `upload:${sessionId}`;
+    socket.join(roomName);
+    
+    // Track upload session membership
+    if (!this.uploadSessions.has(sessionId)) {
+      this.uploadSessions.set(sessionId, new Set());
+    }
+    this.uploadSessions.get(sessionId).add(socket.id);
+
+    // Track room membership
+    if (!this.rooms.has(roomName)) {
+      this.rooms.set(roomName, new Set());
+    }
+    this.rooms.get(roomName).add(socket.id);
+
+    socket.emit('upload-session-joined', { sessionId });
+    logger.info(`User ${userInfo.username} joined upload session: ${sessionId}`);
+  }
+
+  /**
+   * ✅ NEW: Handle leaving upload session
+   */
+  handleUploadSessionLeave(socket, sessionId) {
+    const userInfo = this.userSockets.get(socket.id);
+    
+    if (!userInfo) return;
+
+    const roomName = `upload:${sessionId}`;
+    socket.leave(roomName);
+    
+    // Remove from upload session tracking
+    if (this.uploadSessions.has(sessionId)) {
+      this.uploadSessions.get(sessionId).delete(socket.id);
+      
+      // Clean up empty sessions
+      if (this.uploadSessions.get(sessionId).size === 0) {
+        this.uploadSessions.delete(sessionId);
+      }
+    }
+    
+    // Remove from room tracking
+    if (this.rooms.has(roomName)) {
+      this.rooms.get(roomName).delete(socket.id);
+      
+      // Clean up empty rooms
+      if (this.rooms.get(roomName).size === 0) {
+        this.rooms.delete(roomName);
+      }
+    }
+
+    socket.emit('upload-session-left', { sessionId });
+    logger.info(`User ${userInfo.username} left upload session: ${sessionId}`);
   }
 
   /**
@@ -302,6 +397,7 @@ class SocketService {
     if (role === USER_ROLES.TECHNICIAN) {
       return roomName.startsWith('technician:') || 
              roomName.startsWith('test:') ||
+             roomName.startsWith('upload:') ||
              roomName.startsWith('general:');
     }
 
@@ -354,18 +450,21 @@ class SocketService {
    * Emit to specific user
    */
   emitToUser(userId, event, data) {
-    const socketId = this.connectedUsers.get(userId.toString());
+    const socketIds = this.connectedUsers.get(userId.toString());
     
-    if (socketId) {
-      this.io.to(socketId).emit(event, {
-        ...data,
-        timestamp: new Date().toISOString()
+    if (socketIds && socketIds.size > 0) {
+      socketIds.forEach(socketId => {
+        this.io.to(socketId).emit(event, {
+          ...data,
+          timestamp: new Date().toISOString()
+        });
       });
       
-      logger.debug(`Emitted ${event} to user ${userId}`);
+      logger.debug(`Emitted ${event} to user ${userId} on ${socketIds.size} sockets`);
       return true;
     }
     
+    logger.warn(`No active sockets found for user ${userId}`);
     return false;
   }
 
@@ -391,6 +490,34 @@ class SocketService {
     });
     
     logger.debug(`Emitted ${event} to room ${roomName}`);
+  }
+
+  /**
+   * ✅ NEW: Emit to upload session (both session room and user)
+   */
+  emitToUploadSession(sessionId, userId, event, data) {
+    const roomName = `upload:${sessionId}`;
+    let success = false;
+    
+    // Emit to session room (primary method)
+    const sessionSockets = this.uploadSessions.get(sessionId);
+    if (sessionSockets && sessionSockets.size > 0) {
+      this.emitToRoom(roomName, event, data);
+      success = true;
+      logger.debug(`Emitted ${event} to upload session room ${sessionId} with ${sessionSockets.size} sockets`);
+    }
+    
+    // Also emit to user directly (backup method)
+    const userEmitSuccess = this.emitToUser(userId, event, data);
+    if (userEmitSuccess) {
+      success = true;
+    }
+    
+    if (!success) {
+      logger.warn(`Failed to emit ${event} to session ${sessionId} and user ${userId} - no active connections`);
+    }
+    
+    return success;
   }
 
   /**
@@ -470,6 +597,7 @@ class SocketService {
       totalConnections: this.connectedUsers.size,
       usersByRole: {},
       rooms: {},
+      uploadSessions: {},
       connectionsByTime: {}
     };
 
@@ -484,6 +612,11 @@ class SocketService {
       stats.rooms[roomName] = users.size;
     });
 
+    // Count upload sessions
+    this.uploadSessions.forEach((sockets, sessionId) => {
+      stats.uploadSessions[sessionId] = sockets.size;
+    });
+
     return stats;
   }
 
@@ -491,16 +624,18 @@ class SocketService {
    * Disconnect user
    */
   disconnectUser(userId, reason = 'Administrative disconnect') {
-    const socketId = this.connectedUsers.get(userId.toString());
+    const socketIds = this.connectedUsers.get(userId.toString());
     
-    if (socketId) {
-      const socket = this.io.sockets.sockets.get(socketId);
-      if (socket) {
-        socket.emit('force-disconnect', { reason });
-        socket.disconnect(true);
-        logger.info(`Forcibly disconnected user ${userId}: ${reason}`);
-        return true;
-      }
+    if (socketIds && socketIds.size > 0) {
+      socketIds.forEach(socketId => {
+        const socket = this.io.sockets.sockets.get(socketId);
+        if (socket) {
+          socket.emit('force-disconnect', { reason });
+          socket.disconnect(true);
+        }
+      });
+      logger.info(`Forcibly disconnected user ${userId}: ${reason}`);
+      return true;
     }
     
     return false;

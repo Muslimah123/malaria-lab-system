@@ -1,5 +1,5 @@
 // 📁 client/src/store/slices/patientsSlice.js
-// Patient management slice matching your backend Patient model
+// Patient management slice matching your backend Patient model - FIXED VERSION
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiService from '../../services/api';
@@ -12,7 +12,7 @@ export const fetchPatients = createAsyncThunk(
       const response = await apiService.patients.getAll(params);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(apiService.formatError(error));
     }
   }
 );
@@ -22,9 +22,10 @@ export const fetchPatientById = createAsyncThunk(
   async (patientId, { rejectWithValue }) => {
     try {
       const response = await apiService.patients.getById(patientId);
-      return response.data.patient;
+      // ✅ FIX: Handle the actual response structure
+      return response.data?.data?.patient || response.data?.patient || response.data;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(apiService.formatError(error));
     }
   }
 );
@@ -34,9 +35,24 @@ export const createPatient = createAsyncThunk(
   async (patientData, { rejectWithValue }) => {
     try {
       const response = await apiService.patients.create(patientData);
-      return response.data.patient;
+      console.log('Redux createPatient response:', response);
+      
+      // ✅ FIX: Extract patient from the correct response structure
+      const patient = response.data?.data?.patient || 
+                     response.data?.patient || 
+                     response.data?.data || 
+                     response.data;
+      
+      console.log('Redux extracted patient:', patient);
+      
+      if (!patient) {
+        throw new Error('Invalid response structure from patient creation');
+      }
+      
+      return patient;
     } catch (error) {
-      return rejectWithValue(error.message);
+      console.error('Redux createPatient error:', error);
+      return rejectWithValue(apiService.formatError(error));
     }
   }
 );
@@ -46,9 +62,15 @@ export const updatePatient = createAsyncThunk(
   async ({ patientId, patientData }, { rejectWithValue }) => {
     try {
       const response = await apiService.patients.update(patientId, patientData);
-      return response.data.patient;
+      // ✅ FIX: Handle the actual response structure
+      const patient = response.data?.data?.patient || 
+                     response.data?.patient || 
+                     response.data?.data || 
+                     response.data;
+      
+      return patient;
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(apiService.formatError(error));
     }
   }
 );
@@ -58,9 +80,18 @@ export const searchPatients = createAsyncThunk(
   async (searchTerm, { rejectWithValue }) => {
     try {
       const response = await apiService.patients.search(searchTerm);
-      return response.data;
+      console.log('Redux searchPatients response:', response);
+      
+      // ✅ FIX: Handle the search response structure
+      if (response.success) {
+        return response.data || [];
+      } else {
+        // Handle API service normalized response
+        return response.data?.data || response.data || [];
+      }
     } catch (error) {
-      return rejectWithValue(error.message);
+      console.error('Redux searchPatients error:', error);
+      return rejectWithValue(apiService.formatError(error));
     }
   }
 );
@@ -144,6 +175,7 @@ const patientsSlice = createSlice({
         state.isCreating = false;
         state.currentPatient = action.payload;
         state.patients.unshift(action.payload);
+        state.error = null;
       })
       .addCase(createPatient.rejected, (state, action) => {
         state.isCreating = false;
@@ -162,6 +194,7 @@ const patientsSlice = createSlice({
         if (index !== -1) {
           state.patients[index] = action.payload;
         }
+        state.error = null;
       })
       .addCase(updatePatient.rejected, (state, action) => {
         state.isUpdating = false;
@@ -176,10 +209,12 @@ const patientsSlice = createSlice({
       .addCase(searchPatients.fulfilled, (state, action) => {
         state.isSearching = false;
         state.searchResults = action.payload;
+        state.searchError = null;
       })
       .addCase(searchPatients.rejected, (state, action) => {
         state.isSearching = false;
         state.searchError = action.payload;
+        state.searchResults = [];
       });
   }
 });
@@ -193,8 +228,8 @@ export const selectSearchResults = (state) => state.patients.searchResults;
 export const selectPatientsLoading = (state) => state.patients.isLoading;
 export const selectPatientsError = (state) => state.patients.error;
 export const selectPatientsPagination = (state) => state.patients.pagination;
+export const selectIsCreatingPatient = (state) => state.patients.isCreating;
+export const selectIsUpdatingPatient = (state) => state.patients.isUpdating;
+export const selectIsSearchingPatients = (state) => state.patients.isSearching;
 
 export default patientsSlice.reducer;
-
-
-

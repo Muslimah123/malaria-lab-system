@@ -276,3 +276,74 @@ body {
     transition: none;
   }
 }
+
+/* 📁 Add to src/index.css or src/styles/globals.css */
+
+/* Exact gradient from your login page */
+.upload-page-background {
+  background: linear-gradient(135deg, 
+    #1e3a8a 0%,    /* blue-900 */
+    #1e40af 25%,   /* blue-800 */
+    #2563eb 50%,   /* blue-700 */
+    #3b82f6 75%,   /* blue-600 */
+    #60a5fa 100%   /* blue-500 */
+  );
+}
+
+/* Upload card styling to match login */
+.upload-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+}
+
+/* Modal backdrop matching your design */
+.upload-modal-backdrop {
+  background: rgba(30, 58, 138, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+/* Progress bars */
+.upload-progress-bar {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+}
+
+.upload-progress-fill {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+/* Button styles matching login */
+.upload-btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.upload-btn-primary:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.upload-btn-outline {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.upload-btn-outline:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}

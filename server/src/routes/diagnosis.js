@@ -681,9 +681,9 @@ router.post('/:testId/quality-feedback',
 
 /**
  * @swagger
- * /api/diagnosis/{testId}/run:
- *   post:
- *     summary: Run malaria diagnosis for a test
+ * /api/diagnosis/{testId}/debug:
+ *   get:
+ *     summary: Debug route to check diagnosis data structure
  *     tags: [Diagnosis]
  *     security:
  *       - bearerAuth: []
@@ -693,9 +693,10 @@ router.post('/:testId/quality-feedback',
  *         required: true
  *         schema:
  *           type: string
+ *         description: The test ID for the diagnosis to debug
  *     responses:
  *       200:
- *         description: Diagnosis completed successfully
+ *         description: Debug information retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -703,18 +704,263 @@ router.post('/:testId/quality-feedback',
  *               properties:
  *                 success:
  *                   type: boolean
+ *                 debug:
+ *                   type: object
+ *                   properties:
+ *                     testId:
+ *                       type: string
+ *                       description: The test ID
+ *                     status:
+ *                       type: string
+ *                       description: Current status of the diagnosis
+ *                     detectionsCount:
+ *                       type: integer
+ *                       description: Number of detections found
+ *                     firstDetection:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         imageId:
+ *                           type: string
+ *                           description: ID of the first detected image
+ *                         originalFilename:
+ *                           type: string
+ *                           description: Original filename of the image
+ *                         parasiteCount:
+ *                           type: integer
+ *                           description: Total parasite count in the image
+ *                         parasitesDetected:
+ *                           type: integer
+ *                           description: Number of parasites detected
+ *                         firstParasite:
+ *                           type: object
+ *                           nullable: true
+ *                           description: Information about the first parasite detected
  *                 message:
  *                   type: string
- *                 data:
- *                   $ref: '#/components/schemas/DiagnosisResult'
- *       404:
- *         description: Test not found
+ *                   description: Message when no diagnosis result is found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
  */
-router.post('/:testId/run',
-  param('testId').notEmpty().withMessage('Test ID is required'),
-  validateRequest,
-  diagnosisController.runDiagnosis
-);
 
+// Debug endpoint to check data structure
+router.get('/:testId/debug', auth, async (req, res) => {
+  try {
+    const { testId } = req.params;
+    
+    const DiagnosisResult = require('../models/DiagnosisResult');
+    const result = await DiagnosisResult.findOne({ testId: testId.toUpperCase() });
+    
+    if (!result) {
+      return res.json({ success: false, message: 'No diagnosis result found' });
+    }
+    
+    res.json({
+      success: true,
+      debug: {
+        testId: result.testId,
+        status: result.status,
+        detectionsCount: result.detections?.length || 0,
+        firstDetection: result.detections?.[0] ? {
+          imageId: result.detections[0].imageId,
+          originalFilename: result.detections[0].originalFilename,
+          parasiteCount: result.detections[0].parasiteCount,
+          parasitesDetected: result.detections[0].parasitesDetected?.length || 0,
+          firstParasite: result.detections[0].parasitesDetected?.[0]
+        } : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+/**
+ * @swagger
+ * /api/diagnosis/{testId}/test-flask-api:
+ *   post:
+ *     summary: Test Flask API integration and inspect raw response
+ *     description: Debug route to test direct communication with Flask API and examine the raw response structure
+ *     tags: [Diagnosis, Debug]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: testId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The test ID for the diagnosis
+ *         example: "TEST123"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - imagePaths
+ *             properties:
+ *               imagePaths:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of image file paths to analyze
+ *                 example: ["/uploads/image1.jpg", "/uploads/image2.jpg"]
+ *                 minItems: 1
+ *           example:
+ *             imagePaths: ["/uploads/sample1.jpg", "/uploads/sample2.jpg"]
+ *     responses:
+ *       200:
+ *         description: Flask API test completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 rawFlaskResponse:
+ *                   type: object
+ *                   description: Complete raw response from Flask API
+ *                   properties:
+ *                     detections:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           image_id:
+ *                             type: string
+ *                           original_filename:
+ *                             type: string
+ *                           parasite_count:
+ *                             type: integer
+ *                           parasites_detected:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                   additionalProperties: true
+ *                 firstDetection:
+ *                   type: object
+ *                   nullable: true
+ *                   description: First detection object from Flask response for inspection
+ *                   properties:
+ *                     image_id:
+ *                       type: string
+ *                       description: ID of the analyzed image
+ *                     original_filename:
+ *                       type: string
+ *                       description: Original filename of the image
+ *                     parasite_count:
+ *                       type: integer
+ *                       description: Total number of parasites detected
+ *                     parasites_detected:
+ *                       type: array
+ *                       description: Array of detected parasites
+ *                       items:
+ *                         type: object
+ *                   additionalProperties: true
+ *                 firstParasite:
+ *                   type: object
+ *                   nullable: true
+ *                   description: First parasite detection for detailed inspection
+ *                   properties:
+ *                     type:
+ *                       type: string
+ *                       description: Type of parasite detected
+ *                     confidence:
+ *                       type: number
+ *                       description: Confidence score of detection
+ *                     coordinates:
+ *                       type: object
+ *                       description: Bounding box coordinates
+ *                   additionalProperties: true
+ *       400:
+ *         description: Bad request - missing or invalid imagePaths
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "imagePaths array is required"
+ *       401:
+ *         description: Unauthorized - authentication required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Authentication required"
+ *       500:
+ *         description: Internal server error - Flask API communication failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   description: Error message
+ *                   example: "Flask API connection failed"
+ *                 stack:
+ *                   type: string
+ *                   description: Error stack trace for debugging
+ *                   example: "Error: connect ECONNREFUSED 127.0.0.1:5001..."
+ */
+
+// Also add this route to check what Flask actually returns
+router.post('/:testId/test-flask-api', auth, async (req, res) => {
+  try {
+    const { imagePaths } = req.body;
+    
+    if (!imagePaths || !Array.isArray(imagePaths)) {
+      return res.status(400).json({
+        success: false,
+        message: 'imagePaths array is required'
+      });
+    }
+
+    // Call Flask API directly to see raw response
+    const diagnosisService = require('../services/diagnosisService');
+    const result = await diagnosisService.analyzeSample(imagePaths);
+
+    // Return raw Flask response
+    res.json({
+      success: true,
+      rawFlaskResponse: result,
+      // Inspect first detection
+      firstDetection: result.detections?.[0],
+      firstParasite: result.detections?.[0]?.parasites_detected?.[0]
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
 
 module.exports = router;

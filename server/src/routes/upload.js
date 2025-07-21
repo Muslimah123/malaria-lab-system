@@ -148,7 +148,7 @@ router.post('/files/:sessionId',
   ...fileUpload,
   trackUploadEnd,
   handleUploadError,
-  uploadController.uploadFiles
+  uploadController.uploadFiles.bind(uploadController)
 );
 
 /**
@@ -172,7 +172,7 @@ router.post('/files/:sessionId',
 router.post('/process/:sessionId',
   param('sessionId').notEmpty().withMessage('Session ID is required'),
   validateRequest,
-  uploadController.processFiles
+  uploadController.processFiles.bind(uploadController)
 );
 
 /**

@@ -69,39 +69,46 @@ class AuditService {
       }
     }
 
-    // Validate action is in allowed list
-    const validActions = [
-      // Authentication
-      'login', 'logout', 'failed_login', 'password_change',
-      // User management
-      'user_created', 'user_updated', 'user_deleted', 'user_activated', 'user_deactivated',
-      // Patient management
-      'patient_created', 'patient_updated', 'patient_deleted', 'patient_viewed',
-      // Test operations
-      'test_created', 'test_updated', 'test_deleted', 'test_started', 'test_completed', 'test_cancelled',
-      // Sample operations
-      'sample_uploaded', 'sample_deleted', 'sample_downloaded',
-      // Diagnosis operations
-      'diagnosis_completed', 'diagnosis_reviewed', 'diagnosis_overridden',
-      // Report operations
-      'report_generated', 'report_exported', 'report_printed', 'report_shared',
-      // Integration operations
-      'data_exported_to_hospital', 'api_call_made', 'integration_failed',
-      // System operations
-      'system_backup', 'system_maintenance', 'database_cleanup',
-      // Security events
-      'unauthorized_access_attempt', 'data_breach_detected', 'suspicious_activity'
-    ];
 
-    if (!validActions.includes(logData.action)) {
-      logger.warn(`Unknown audit action: ${logData.action}`);
-    }
+  // Validate action is in allowed list
+const validActions = [
+  // Authentication
+  'login', 'logout', 'failed_login', 'password_change',
+  // User management
+  'user_created', 'user_updated', 'user_deleted', 'user_activated', 'user_deactivated',
+  // Patient management
+  'patient_created', 'patient_updated', 'patient_deleted', 'patient_viewed',
+  // Test operations
+  'test_created', 'test_updated', 'test_deleted', 'test_started', 'test_completed', 'test_cancelled',
+  // Sample operations
+  'sample_uploaded', 'sample_deleted', 'sample_downloaded', 'upload',
+  // Diagnosis operations
+  'diagnosis_completed', 'diagnosis_reviewed', 'diagnosis_overridden', 'diagnosis_viewed',
+  // Report operations
+  'report_generated', 'report_exported', 'report_printed', 'report_shared',
+  // Integration operations
+  'data_exported_to_hospital', 'api_call_made', 'integration_failed',
+  // System operations
+  'system_backup', 'system_maintenance', 'database_cleanup',
+  // Security events
+  'unauthorized_access_attempt', 'data_breach_detected', 'suspicious_activity',
+  // Custom upload session events
+  'upload_session_created', 'files_uploaded', 'socket_disconnected'
+];
 
-    // Validate resource type
-    const validResourceTypes = ['user', 'patient', 'test', 'diagnosis', 'sample', 'report', 'system'];
-    if (!validResourceTypes.includes(logData.resourceType)) {
-      logger.warn(`Unknown resource type: ${logData.resourceType}`);
-    }
+if (!validActions.includes(logData.action)) {
+  logger.warn(`Unknown audit action: ${logData.action}`);
+}
+
+// Validate resource type
+const validResourceTypes = [
+  'user', 'patient', 'test', 'diagnosis', 'sample', 'report', 'system', 'upload'
+];
+
+if (!validResourceTypes.includes(logData.resourceType)) {
+  logger.warn(`Unknown resource type: ${logData.resourceType}`);
+}
+
 
     // Validate risk level
     if (logData.riskLevel && !['low', 'medium', 'high', 'critical'].includes(logData.riskLevel)) {

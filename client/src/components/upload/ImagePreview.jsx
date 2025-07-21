@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   RotateCw, 
@@ -9,7 +9,8 @@ import {
   CheckCircle, 
   Edit3,
   Download,
-  Info
+  Info,
+  RefreshCw
 } from 'lucide-react';
 
 const ImagePreview = ({ 
@@ -17,10 +18,13 @@ const ImagePreview = ({
   onRemove, 
   onReplace, 
   validationResults,
-  editable = true 
+  editable = true,
+  onRetryUpload // New prop for retrying individual file uploads
 }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageErrors, setImageErrors] = useState({});
+  const modalRef = useRef(null);
+  const previousFocusRef = useRef(null);
 
   const formatFileSize = (bytes) => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -37,6 +41,7 @@ const ImagePreview = ({
     if (validFile) return 'valid';
     if (file.status === 'error') return 'error';
     if (file.status === 'uploading') return 'uploading';
+    if (file.status === 'failed') return 'failed';
     return 'pending';
   };
 
@@ -46,6 +51,7 @@ const ImagePreview = ({
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'invalid':
       case 'error':
+      case 'failed':
         return <AlertTriangle className="w-4 h-4 text-red-500" />;
       case 'uploading':
         return <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />;
@@ -60,6 +66,7 @@ const ImagePreview = ({
         return 'border-green-200 bg-green-50';
       case 'invalid':
       case 'error':
+      case 'failed':
         return 'border-red-200 bg-red-50';
       case 'uploading':
         return 'border-blue-200 bg-blue-50';
@@ -87,46 +94,126 @@ const ImagePreview = ({
     input.click();
   };
 
+  const handleRetryUpload = (file) => {
+    if (onRetryUpload && typeof onRetryUpload === 'function') {
+      onRetryUpload(file);
+    }
+  };
+
   const ImageModal = ({ image, onClose }) => {
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
 
+    useEffect(() => {
+      // Store current focus
+      previousFocusRef.current = document.activeElement;
+      
+      // Focus modal
+      if (modalRef.current) {
+        modalRef.current.focus();
+      }
+
+      // Handle escape key
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      };
+
+      document.addEventListener('keydown', handleEscape);
+      
+      return () => {
+        document.removeEventListener('keydown', handleEscape);
+        // Restore focus
+        if (previousFocusRef.current) {
+          previousFocusRef.current.focus();
+        }
+      };
+    }, [onClose]);
+
+    // Keyboard navigation
+    const handleKeyDown = (e) => {
+      switch (e.key) {
+        case '+':
+        case '=':
+          e.preventDefault();
+          setZoom(Math.min(3, zoom + 0.25));
+          break;
+        case '-':
+        case '_':
+          e.preventDefault();
+          setZoom(Math.max(0.5, zoom - 0.25));
+          break;
+        case 'r':
+        case 'R':
+          e.preventDefault();
+          setRotation((rotation + 90) % 360);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          // Navigate to previous image 
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          // Navigate to next image
+          break;
+      }
+    };
+
     if (!image) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-        <div className="max-w-4xl max-h-full w-full h-full flex flex-col">
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <div 
+          ref={modalRef}
+          className="max-w-4xl max-h-full w-full h-full flex flex-col focus:outline-none"
+          tabIndex={-1}
+          onKeyDown={handleKeyDown}
+        >
           {/* Header */}
           <div className="flex items-center justify-between p-4 bg-white">
             <div>
-              <h3 className="text-lg font-medium text-gray-900">{image.name}</h3>
+              <h3 id="modal-title" className="text-lg font-medium text-gray-900">{image.name}</h3>
               <p className="text-sm text-gray-500">{formatFileSize(image.size)}</p>
             </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}
-                className="p-2 text-gray-600 hover:text-gray-900"
+                className="p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
                 disabled={zoom <= 0.5}
+                aria-label="Zoom out"
+                title="Zoom out (- key)"
               >
                 <ZoomOut className="w-5 h-5" />
               </button>
-              <span className="text-sm text-gray-600">{Math.round(zoom * 100)}%</span>
+              <span className="text-sm text-gray-600" aria-live="polite">{Math.round(zoom * 100)}%</span>
               <button
                 onClick={() => setZoom(Math.min(3, zoom + 0.25))}
-                className="p-2 text-gray-600 hover:text-gray-900"
+                className="p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
                 disabled={zoom >= 3}
+                aria-label="Zoom in"
+                title="Zoom in (+ key)"
               >
                 <ZoomIn className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setRotation((rotation + 90) % 360)}
-                className="p-2 text-gray-600 hover:text-gray-900"
+                className="p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                aria-label="Rotate image"
+                title="Rotate (R key)"
               >
                 <RotateCw className="w-5 h-5" />
               </button>
               <button
                 onClick={onClose}
-                className="p-2 text-gray-600 hover:text-gray-900"
+                className="p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                aria-label="Close modal"
+                title="Close (Esc key)"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -143,6 +230,11 @@ const ImagePreview = ({
                 transform: `scale(${zoom}) rotate(${rotation}deg)`
               }}
             />
+          </div>
+
+          {/* Keyboard shortcuts help */}
+          <div className="bg-gray-800 text-gray-300 text-xs p-2 text-center">
+            Keyboard shortcuts: <kbd>+/-</kbd> Zoom • <kbd>R</kbd> Rotate • <kbd>Esc</kbd> Close
           </div>
         </div>
       </div>
@@ -182,7 +274,7 @@ const ImagePreview = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {files.map((file) => {
             const status = getFileStatus(file);
-            const hasError = imageErrors[file.id];
+            const hasError = imageErrors[file.id] || status === 'error' || status === 'failed';
             
             return (
               <div
@@ -190,7 +282,7 @@ const ImagePreview = ({
                 className={`relative rounded-lg border-2 p-3 transition-all ${getStatusColor(status)}`}
               >
                 {/* Status Badge */}
-                <div className="absolute top-2 left-2 z-10">
+                <div className="absolute top-2 left-2 z-10" aria-label={`File status: ${status}`}>
                   {getStatusIcon(status)}
                 </div>
 
@@ -199,22 +291,35 @@ const ImagePreview = ({
                   <div className="absolute top-2 right-2 z-10 flex space-x-1">
                     <button
                       onClick={() => setSelectedImage(file)}
-                      className="p-1 bg-white rounded-md shadow-sm hover:bg-gray-50"
+                      className="p-1 bg-white rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       title="View full size"
+                      aria-label={`View ${file.name} in full size`}
                     >
                       <Eye className="w-4 h-4 text-gray-600" />
                     </button>
+                    {(status === 'failed' || status === 'error') && onRetryUpload && (
+                      <button
+                        onClick={() => handleRetryUpload(file)}
+                        className="p-1 bg-white rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        title="Retry upload"
+                        aria-label={`Retry uploading ${file.name}`}
+                      >
+                        <RefreshCw className="w-4 h-4 text-orange-600" />
+                      </button>
+                    )}
                     <button
                       onClick={() => handleReplaceFile(file.id)}
-                      className="p-1 bg-white rounded-md shadow-sm hover:bg-gray-50"
+                      className="p-1 bg-white rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       title="Replace image"
+                      aria-label={`Replace ${file.name}`}
                     >
                       <Edit3 className="w-4 h-4 text-gray-600" />
                     </button>
                     <button
                       onClick={() => onRemove(file.id)}
-                      className="p-1 bg-white rounded-md shadow-sm hover:bg-gray-50 text-red-600"
+                      className="p-1 bg-white rounded-md shadow-sm hover:bg-gray-50 text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
                       title="Remove image"
+                      aria-label={`Remove ${file.name}`}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -228,16 +333,30 @@ const ImagePreview = ({
                       <div className="text-center">
                         <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
                         <p className="text-xs">Failed to load</p>
+                        {(status === 'failed' || status === 'error') && onRetryUpload && (
+                          <button
+                            onClick={() => handleRetryUpload(file)}
+                            className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Retry Upload
+                          </button>
+                        )}
                       </div>
                     </div>
                   ) : (
-                    <img
-                      src={file.preview}
-                      alt={file.name}
-                      className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
-                      onError={() => handleImageError(file.id, 'Failed to load image')}
+                    <button
                       onClick={() => setSelectedImage(file)}
-                    />
+                      className="w-full h-full relative group focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      aria-label={`View ${file.name} in full size`}
+                    >
+                      <img
+                        src={file.preview}
+                        alt={file.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        onError={() => handleImageError(file.id, 'Failed to load image')}
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity" />
+                    </button>
                   )}
                 </div>
 
@@ -256,7 +375,7 @@ const ImagePreview = ({
 
                   {/* Validation Messages */}
                   {status === 'invalid' && validationResults?.invalidFiles && (
-                    <div className="text-xs text-red-600">
+                    <div className="text-xs text-red-600" role="alert">
                       {validationResults.invalidFiles
                         .find(f => f.name === file.name)
                         ?.errors?.slice(0, 2)
@@ -266,14 +385,21 @@ const ImagePreview = ({
                     </div>
                   )}
 
+                  {/* Upload Error Message */}
+                  {status === 'failed' && file.errorMessage && (
+                    <div className="text-xs text-red-600" role="alert">
+                      <p>• {file.errorMessage}</p>
+                    </div>
+                  )}
+
                   {/* Upload Progress */}
                   {status === 'uploading' && file.progress !== undefined && (
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs text-gray-600">
                         <span>Uploading...</span>
-                        <span>{file.progress}%</span>
+                        <span aria-live="polite">{file.progress}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1">
+                      <div className="w-full bg-gray-200 rounded-full h-1" role="progressbar" aria-valuenow={file.progress} aria-valuemin="0" aria-valuemax="100">
                         <div
                           className="bg-blue-500 h-1 rounded-full transition-all"
                           style={{ width: `${file.progress}%` }}
@@ -304,15 +430,15 @@ const ImagePreview = ({
             </div>
             <div>
               <p className="text-lg font-semibold text-green-600">
-                {validationResults?.validFiles?.length || 0}
+                {validationResults?.validFiles?.length || files.filter(f => getFileStatus(f) === 'valid').length}
               </p>
               <p className="text-xs text-gray-500">Valid</p>
             </div>
             <div>
               <p className="text-lg font-semibold text-red-600">
-                {validationResults?.invalidFiles?.length || 0}
+                {validationResults?.invalidFiles?.length || files.filter(f => ['invalid', 'error', 'failed'].includes(getFileStatus(f))).length}
               </p>
-              <p className="text-xs text-gray-500">Invalid</p>
+              <p className="text-xs text-gray-500">Invalid/Failed</p>
             </div>
             <div>
               <p className="text-lg font-semibold text-gray-900">

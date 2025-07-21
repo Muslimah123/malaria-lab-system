@@ -17,7 +17,7 @@ class UploadController {
    */
   async createUploadSession(req, res, next) {
     try {
-      const { testId, maxFiles = 10, maxFileSize = 10485760 } = req.body; // 10MB default
+      const { testId, maxFiles = 10, maxFileSize = 10485760 } = req.body; 
       const user = req.user;
 
       // Verify test exists and user has access
@@ -347,161 +347,6 @@ class UploadController {
     }
   }
 
-  // /**
-  //  * Upload files to an existing session
-  //  */
-  // async uploadFiles(req, res, next) {
-  //   try {
-  //     const { sessionId } = req.params;
-  //     const files = req.files;
-  //     const user = req.user;
-
-  //     if (!files || files.length === 0) {
-  //       return res.status(400).json({
-  //         success: false,
-  //         message: 'No files provided'
-  //       });
-  //     }
-
-  //     // Find upload session
-  //     const session = await UploadSession.findOne({ sessionId, isCleanedUp: false });
-  //     if (!session) {
-  //       return res.status(404).json({
-  //         success: false,
-  //         message: 'Upload session not found or expired'
-  //       });
-  //     }
-
-  //     // Check session ownership
-  //     if (session.user.toString() !== user._id.toString()) {
-  //       return res.status(403).json({
-  //         success: false,
-  //         message: 'Not authorized to upload to this session'
-  //       });
-  //     }
-
-  //     // Check if session is active
-  //     if (session.status !== 'active') {
-  //       return res.status(400).json({
-  //         success: false,
-  //         message: 'Upload session is not active'
-  //       });
-  //     }
-
-  //     // Check file limits
-  //     const currentFileCount = session.files.length;
-  //     if (currentFileCount + files.length > session.config.maxFiles) {
-  //       return res.status(400).json({
-  //         success: false,
-  //         message: `Cannot upload more than ${session.config.maxFiles} files per session`
-  //       });
-  //     }
-
-  //     const uploadResults = [];
-  //     const errors = [];
-
-  //     // Process each file
-  //     for (const file of files) {
-  //       try {
-  //         // Validate file
-  //         const validation = await fileService.validateImageFile(file, session.config);
-          
-  //         if (!validation.isValid) {
-  //           errors.push({
-  //             filename: file.originalname,
-  //             errors: validation.errors
-  //           });
-  //           continue;
-  //         }
-
-  //         // Save file and get metadata
-  //         const savedFile = await fileService.saveUploadedFile(file, session.sessionId);
-          
-  //         // Add to session
-  //         session.files.push({
-  //           filename: savedFile.filename,
-  //           originalName: file.originalname,
-  //           path: savedFile.path,
-  //           size: file.size,
-  //           mimetype: file.mimetype,
-  //           status: 'completed',
-  //           isValid: true,
-  //           imageMetadata: savedFile.metadata
-  //         });
-
-  //         uploadResults.push({
-  //           originalName: file.originalname,
-  //           filename: savedFile.filename,
-  //           size: file.size,
-  //           status: 'completed'
-  //         });
-
-  //         // Emit real-time progress update
-  //         socketService.emitToUser(user._id, 'upload:fileUploaded', {
-  //           sessionId,
-  //           filename: savedFile.filename,
-  //           originalName: file.originalname,
-  //           progress: session.progress.percentComplete
-  //         });
-
-  //       } catch (fileError) {
-  //         logger.error(`File upload error for ${file.originalname}:`, fileError);
-  //         errors.push({
-  //           filename: file.originalname,
-  //           errors: ['Failed to process file']
-  //         });
-  //       }
-  //     }
-
-  //     // Save session with updated files
-  //     await session.save();
-
-  //     // Log file uploads
-  //     await auditService.log({
-  //       action: 'files_uploaded',
-  //       userId: user._id,
-  //       userInfo: { username: user.username, email: user.email, role: user.role },
-  //       resourceType: 'upload',
-  //       resourceId: session.sessionId,
-  //       resourceName: `Upload session ${session.sessionId}`,
-  //       details: {
-  //         uploadedFiles: uploadResults.length,
-  //         failedFiles: errors.length,
-  //         totalFiles: files.length,
-  //         testId: session.testId
-  //       },
-  //       requestInfo: {
-  //         ipAddress: req.ip,
-  //         userAgent: req.get('User-Agent'),
-  //         method: 'POST',
-  //         endpoint: `/api/upload/files/${sessionId}`
-  //       },
-  //       status: uploadResults.length > 0 ? 'success' : 'failure',
-  //       riskLevel: 'low'
-  //     });
-
-  //     // Emit session update
-  //     socketService.emitToUser(user._id, 'upload:sessionUpdated', {
-  //       sessionId,
-  //       session: session.getSummary()
-  //     });
-
-  //     res.json({
-  //       success: true,
-  //       message: `${uploadResults.length} files uploaded successfully`,
-  //       data: {
-  //         session: session.getSummary(),
-  //         uploadedFiles: uploadResults,
-  //         errors
-  //       }
-  //     });
-
-  //   } catch (error) {
-  //     logger.error('Upload files error:', error);
-  //     next(new AppError('Failed to upload files', 500));
-  //   }
-  // }
-
   /**
    * Process uploaded files (send to Flask API for diagnosis)
    */
@@ -582,339 +427,243 @@ class UploadController {
   }
 
   /**
-   * Async file processing (calls Flask API)
-   */
-  async processFilesAsync(session, userId) {
-    try {
-      // Mark file validation stage as in progress
-      await session.markProcessingStage('fileValidation', 'in_progress');
+ * Async file processing (calls Flask API) - IMPROVED VERSION
+ */
+async processFilesAsync(session, userId) {
+  try {
+    // Mark file validation stage as in progress
+    await session.markProcessingStage('fileValidation', 'in_progress');
 
-      const validFiles = session.getValidFiles();
-      
-      // Use shared paths for Flask API if available, otherwise use local paths
-      const imagePaths = validFiles.map(file => file.sharedPath || file.path);
+    const validFiles = session.getValidFiles();
+    
+    // Use shared paths for Flask API if available, otherwise use local paths
+    const imagePaths = validFiles.map(file => file.sharedPath || file.path);
 
-      logger.info(`Processing ${validFiles.length} files with Flask API`);
-      logger.debug('Image paths for Flask:', imagePaths);
+    logger.info(`Processing ${validFiles.length} files with Flask API`);
+    logger.debug('Image paths for Flask:', imagePaths);
 
-      // Mark file validation as completed
-      await session.markProcessingStage('fileValidation', 'completed');
-
-      // Mark image preparation as in progress
-      await session.markProcessingStage('imagePreperation', 'in_progress');
-
-      // Emit progress update
-      socketService.emitToUser(userId, 'upload:processingProgress', {
+    // ✅ IMPROVED: Send detailed progress updates
+    const sendProgressUpdate = (stage, progress, details = {}) => {
+      const progressData = {
         sessionId: session.sessionId,
-        stage: 'preparation',
-        progress: 30
-      });
-
-      // Mark image preparation as completed
-      await session.markProcessingStage('imagePreperation', 'completed');
-
-      // Mark API submission as in progress
-      await session.markProcessingStage('apiSubmission', 'in_progress');
-
-      // Emit progress update
-      socketService.emitToUser(userId, 'upload:processingProgress', {
-        sessionId: session.sessionId,
-        stage: 'analysis',
-        progress: 60
-      });
-
-      // Call Flask diagnosis API
-      const diagnosisResult = await diagnosisService.analyzeSample(imagePaths);
-
-      // Mark API submission as completed
-      await session.markProcessingStage('apiSubmission', 'completed');
-
-      // Create diagnosis result record
-      const result = new DiagnosisResult({
-        test: session.test,
-        testId: session.testId,
-        status: diagnosisResult.status,
-        confidence: diagnosisResult.confidence || 0,
-        mostProbableParasite: diagnosisResult.most_probable_parasite ? {
-          type: diagnosisResult.most_probable_parasite.type,
-          confidence: diagnosisResult.most_probable_parasite.confidence
-        } : undefined,
-        parasiteWbcRatio: diagnosisResult.parasite_wbc_ratio,
-        detections: diagnosisResult.detections.map(detection => ({
-          imageId: detection.image_id,
-          originalFilename: validFiles.find(f => f.filename.includes(detection.image_id))?.originalName,
-          parasitesDetected: detection.parasites_detected || [],
-          whiteBloodCellsDetected: detection.white_blood_cells_detected || 0,
-          parasiteCount: detection.parasite_count || 0,
-          parasiteWbcRatio: detection.parasite_wbc_ratio || 0
-        })),
-        apiResponse: {
-          rawResponse: diagnosisResult.raw_response,
-          processingTime: session.processing.processingTime,
-          callTimestamp: new Date(),
-          apiVersion: diagnosisResult.processing_info?.api_version || '1.0'
-        }
-      });
-
-      // Calculate severity
-      result.calculateSeverity();
-      await result.save();
-
-      // Complete processing
-      await session.completeProcessing(true);
-
-      // Update test status
-      const test = await Test.findById(session.test);
-      await test.updateStatus('completed', userId);
-
-      // Update patient statistics
-      const patient = await test.populate('patient');
-      if (diagnosisResult.status === 'POS') {
-        patient.patient.positiveTests += 1;
-      }
-      patient.patient.lastTestResult = diagnosisResult.status;
-      await patient.patient.save();
-
-      // Log successful processing
-      await auditService.log({
-        action: 'diagnosis_completed',
-        userId: userId,
-        resourceType: 'diagnosis',
-        resourceId: result._id.toString(),
-        resourceName: `Diagnosis for ${session.testId}`,
-        details: {
-          sessionId: session.sessionId,
-          result: diagnosisResult.status,
-          parasiteType: diagnosisResult.most_probable_parasite?.type,
-          confidence: diagnosisResult.confidence,
-          filesProcessed: validFiles.length
-        },
-        status: 'success',
-        riskLevel: 'low'
-      });
-
-      // Emit completion notification
-      socketService.emitToUser(userId, 'upload:processingCompleted', {
-        sessionId: session.sessionId,
-        testId: session.testId,
-        result: result.generateReport()
-      });
-
-      // Emit to all supervisors for positive results
-      if (diagnosisResult.status === 'POS') {
-        socketService.emitToRole('supervisor', 'diagnosis:positiveResult', {
-          testId: session.testId,
-          patientId: session.patientId,
-          severity: result.severity.level,
-          technician: userId
-        });
-      }
-
-    } catch (error) {
-      logger.error('Async file processing error:', error);
-
-      // Mark processing as failed
-      await session.completeProcessing(false);
-      session.errorMessages.push(error.message);
-      session.lastError = {
-        message: error.message,
-        timestamp: new Date(),
-        code: 'PROCESSING_FAILED'
+        stage,
+        progress,
+        overall: progress,
+        totalFiles: validFiles.length,
+        processedFiles: Math.floor((progress / 100) * validFiles.length),
+        estimatedTimeRemaining: Math.max(10, Math.round((100 - progress) * 2)), // Rough estimate
+        ...details
       };
-      await session.save();
+      
+      logger.debug(`Sending progress update: ${stage} - ${progress}%`);
+      socketService.emitToUploadSession(session.sessionId, userId, 'upload:processingProgress', progressData);
+    };
 
-      // Update test status to failed
-      const test = await Test.findById(session.test);
-      await test.updateStatus('failed', userId);
+    // Send initial progress
+    sendProgressUpdate('fileValidation', 10, { 
+      currentFile: validFiles[0]?.originalName || 'Preparing...' 
+    });
 
-      // Log processing failure
-      await auditService.log({
-        action: 'diagnosis_failed',
-        userId: userId,
-        resourceType: 'diagnosis',
-        resourceId: session.sessionId,
-        details: {
-          sessionId: session.sessionId,
-          error: error.message,
-          filesAttempted: session.getValidFiles().length
-        },
-        status: 'failure',
-        riskLevel: 'medium'
-      });
+    // Mark file validation as completed
+    await session.markProcessingStage('fileValidation', 'completed');
+    sendProgressUpdate('imagePreperation', 25, { 
+      currentFile: 'Preparing images for analysis...' 
+    });
 
-      // Emit failure notification
-      socketService.emitToUser(userId, 'upload:processingFailed', {
-        sessionId: session.sessionId,
+    // Mark image preparation as in progress
+    await session.markProcessingStage('imagePreperation', 'in_progress');
+
+    // Mark image preparation as completed
+    await session.markProcessingStage('imagePreperation', 'completed');
+    sendProgressUpdate('apiSubmission', 45, { 
+      currentFile: 'Sending to AI analysis engine...' 
+    });
+
+    // Mark API submission as in progress
+    await session.markProcessingStage('apiSubmission', 'in_progress');
+
+    // Send progress update before calling Flask API
+    sendProgressUpdate('analysis', 60, { 
+      currentFile: 'AI analysis in progress...' 
+    });
+
+    // Call Flask diagnosis API
+    const diagnosisResult = await diagnosisService.analyzeSample(imagePaths);
+
+    // Mark API submission as completed
+    await session.markProcessingStage('apiSubmission', 'completed');
+    sendProgressUpdate('reportGeneration', 85, { 
+      currentFile: 'Generating diagnostic report...' 
+    });
+
+    const typeToName = {
+      'PF': 'Plasmodium Falciparum',
+      'PM': 'Plasmodium Malariae',
+      'PO': 'Plasmodium Ovale',
+      'PV': 'Plasmodium Vivax'
+    };
+
+    const parasiteType = diagnosisResult.most_probable_parasite?.type;
+
+    // Create diagnosis result record
+    const result = new DiagnosisResult({
+      test: session.test,
+      testId: session.testId,
+      status: diagnosisResult.status,
+      confidence: diagnosisResult.confidence || 0,
+      mostProbableParasite: diagnosisResult.most_probable_parasite ? {
+        type: parasiteType,
+        confidence: diagnosisResult.most_probable_parasite.confidence,
+        fullName: parasiteType ? typeToName[parasiteType] : undefined
+      } : undefined,
+      parasiteWbcRatio: diagnosisResult.parasite_wbc_ratio,
+      totalImagesAnalyzed: validFiles.length,
+      detections: diagnosisResult.detections.map(detection => ({
+        imageId: detection.image_id,
+        originalFilename: validFiles.find(f => f.filename.includes(detection.image_id))?.originalName,
+        parasitesDetected: detection.parasites_detected || [],
+        whiteBloodCellsDetected: detection.white_blood_cells_detected || 0,
+        parasiteCount: detection.parasite_count || 0,
+        parasiteWbcRatio: detection.parasite_wbc_ratio || 0
+      })),
+      apiResponse: {
+        rawResponse: diagnosisResult.raw_response,
+        processingTime: session.processing.processingTime,
+        callTimestamp: new Date(),
+        apiVersion: diagnosisResult.processing_info?.api_version || '1.0'
+      }
+    });
+
+    // Calculate severity
+result.calculateSeverity();
+await result.save();
+
+// ✅ CRITICAL FIX: Send final progress update with "completed" stage
+const sendFinalProgress = (stage, progress, details = {}) => {
+  const progressData = {
+    sessionId: session.sessionId,
+    stage,
+    progress,
+    overall: progress,
+    totalFiles: validFiles.length,
+    processedFiles: validFiles.length, // All files are done
+    estimatedTimeRemaining: 0, // No time remaining
+    ...details
+  };
+  
+  logger.debug(`Sending final progress update: ${stage} - ${progress}%`);
+  socketService.emitToUploadSession(session.sessionId, userId, 'upload:processingProgress', progressData);
+};
+
+// Send final progress update with "completed" stage
+sendFinalProgress('completed', 100, { 
+  currentFile: 'Analysis complete!',
+  result: diagnosisResult.status,
+  confidence: diagnosisResult.confidence
+});
+
+// Complete processing
+await session.completeProcessing(true);
+
+// Update test status
+const test = await Test.findById(session.test);
+await test.updateStatus('completed', userId);
+
+// Update patient statistics
+const patient = await test.populate('patient');
+if (diagnosisResult.status === 'POS') {
+  patient.patient.positiveTests += 1;
+}
+patient.patient.lastTestResult = diagnosisResult.status;
+await patient.patient.save();
+
+// Log successful processing
+await auditService.log({
+  action: 'diagnosis_completed',
+  userId: userId,
+  resourceType: 'diagnosis',
+  resourceId: result._id.toString(),
+  resourceName: `Diagnosis for ${session.testId}`,
+  details: {
+    sessionId: session.sessionId,
+    result: diagnosisResult.status,
+    parasiteType: diagnosisResult.most_probable_parasite?.type,
+    confidence: diagnosisResult.confidence,
+    filesProcessed: validFiles.length
+  },
+  status: 'success',
+  riskLevel: 'low'
+});
+
+// ✅ IMPROVED: Emit completion notification with completed stage
+logger.info(`[Socket] Emitting completion for session ${session.sessionId} and user ${userId}`);
+const completionSuccess = socketService.emitToUploadSession(session.sessionId, userId, 'upload:processingCompleted', {
+  sessionId: session.sessionId,
+  testId: session.testId,
+  result: result.generateReport(),
+  status: diagnosisResult.status,
+  confidence: diagnosisResult.confidence,
+  processingTime: session.processing.processingTime,
+  stage: 'completed', // ✅ ADD: Explicit stage
+  overall: 100        // ✅ ADD: Explicit progress
+});
+
+if (!completionSuccess) {
+  logger.error(`Failed to emit completion notification for session ${session.sessionId}`);
+}
+
+    // Emit to all supervisors for positive results
+    if (diagnosisResult.status === 'POS') {
+      socketService.emitToRole('supervisor', 'diagnosis:positiveResult', {
         testId: session.testId,
-        error: error.message
+        patientId: session.patientId,
+        severity: result.severity.level,
+        technician: userId
       });
     }
+
+  } catch (error) {
+    logger.error('Async file processing error:', error);
+
+    // Mark processing as failed
+    await session.completeProcessing(false);
+    session.errorMessages.push(error.message);
+    session.lastError = {
+      message: error.message,
+      timestamp: new Date(),
+      code: 'PROCESSING_FAILED'
+    };
+    await session.save();
+
+    // Update test status to failed
+    const test = await Test.findById(session.test);
+    await test.updateStatus('failed', userId);
+
+    // Log processing failure
+    await auditService.log({
+      action: 'diagnosis_failed',
+      userId: userId,
+      resourceType: 'diagnosis',
+      resourceId: session.sessionId,
+      details: {
+        sessionId: session.sessionId,
+        error: error.message,
+        filesAttempted: session.getValidFiles().length
+      },
+      status: 'failure',
+      riskLevel: 'medium'
+    });
+
+    // IMPROVED: Emit failure notification
+    socketService.emitToUploadSession(session.sessionId, userId, 'upload:processingFailed', {
+      sessionId: session.sessionId,
+      testId: session.testId,
+      error: error.message,
+      stage: 'failed'
+    });
   }
+}
 
-  // /**
-  //  * Async file processing (calls Flask API)
-  //  */
-  // async processFilesAsync(session, userId) {
-  //   try {
-  //     // Mark file validation stage as in progress
-  //     await session.markProcessingStage('fileValidation', 'in_progress');
-
-  //     const validFiles = session.getValidFiles();
-      
-  //     // Prepare file paths for Flask API
-  //     const imagePaths = validFiles.map(file => file.path);
-
-  //     // Mark file validation as completed
-  //     await session.markProcessingStage('fileValidation', 'completed');
-
-  //     // Mark image preparation as in progress
-  //     await session.markProcessingStage('imagePreperation', 'in_progress');
-
-  //     // Emit progress update
-  //     socketService.emitToUser(userId, 'upload:processingProgress', {
-  //       sessionId: session.sessionId,
-  //       stage: 'preparation',
-  //       progress: 30
-  //     });
-
-  //     // Mark image preparation as completed
-  //     await session.markProcessingStage('imagePreperation', 'completed');
-
-  //     // Mark API submission as in progress
-  //     await session.markProcessingStage('apiSubmission', 'in_progress');
-
-  //     // Emit progress update
-  //     socketService.emitToUser(userId, 'upload:processingProgress', {
-  //       sessionId: session.sessionId,
-  //       stage: 'analysis',
-  //       progress: 60
-  //     });
-
-  //     // Call Flask diagnosis API
-  //     const diagnosisResult = await diagnosisService.analyzeSample(imagePaths);
-
-  //     // Mark API submission as completed
-  //     await session.markProcessingStage('apiSubmission', 'completed');
-
-  //     // Create diagnosis result record
-  //     const result = new DiagnosisResult({
-  //       test: session.test,
-  //       testId: session.testId,
-  //       status: diagnosisResult.status,
-  //       mostProbableParasite: diagnosisResult.most_probable_parasite ? {
-  //         type: diagnosisResult.most_probable_parasite.type,
-  //         confidence: diagnosisResult.most_probable_parasite.confidence
-  //       } : undefined,
-  //       parasiteWbcRatio: diagnosisResult.parasite_wbc_ratio,
-  //       detections: diagnosisResult.detections.map(detection => ({
-  //         imageId: detection.image_id,
-  //         originalFilename: validFiles.find(f => f.filename.includes(detection.image_id))?.originalName,
-  //         parasitesDetected: detection.parasites_detected || [],
-  //         whiteBloodCellsDetected: detection.white_blood_cells_detected || 0,
-  //         parasiteCount: detection.parasite_count || 0,
-  //         parasiteWbcRatio: detection.parasite_wbc_ratio || 0
-  //       })),
-  //       apiResponse: {
-  //         rawResponse: diagnosisResult,
-  //         processingTime: session.processing.processingTime,
-  //         callTimestamp: new Date()
-  //       }
-  //     });
-
-  //     // Calculate severity
-  //     result.calculateSeverity();
-  //     await result.save();
-
-  //     // Complete processing
-  //     await session.completeProcessing(true);
-
-  //     // Update test status
-  //     const test = await Test.findById(session.test);
-  //     await test.updateStatus('completed', userId);
-
-  //     // Update patient statistics
-  //     const patient = await test.populate('patient');
-  //     if (diagnosisResult.status === 'POS') {
-  //       patient.patient.positiveTests += 1;
-  //     }
-  //     patient.patient.lastTestResult = diagnosisResult.status;
-  //     await patient.patient.save();
-
-  //     // Log successful processing
-  //     await auditService.log({
-  //       action: 'diagnosis_completed',
-  //       userId: userId,
-  //       resourceType: 'diagnosis',
-  //       resourceId: result._id.toString(),
-  //       resourceName: `Diagnosis for ${session.testId}`,
-  //       details: {
-  //         sessionId: session.sessionId,
-  //         result: diagnosisResult.status,
-  //         parasiteType: diagnosisResult.most_probable_parasite?.type,
-  //         confidence: diagnosisResult.most_probable_parasite?.confidence,
-  //         filesProcessed: validFiles.length
-  //       },
-  //       status: 'success',
-  //       riskLevel: 'low'
-  //     });
-
-  //     // Emit completion notification
-  //     socketService.emitToUser(userId, 'upload:processingCompleted', {
-  //       sessionId: session.sessionId,
-  //       testId: session.testId,
-  //       result: result.generateReport()
-  //     });
-
-  //     // Emit to all supervisors for positive results
-  //     if (diagnosisResult.status === 'POS') {
-  //       socketService.emitToRole('supervisor', 'diagnosis:positiveResult', {
-  //         testId: session.testId,
-  //         patientId: session.patientId,
-  //         severity: result.severity.level,
-  //         technician: userId
-  //       });
-  //     }
-
-  //   } catch (error) {
-  //     logger.error('Async file processing error:', error);
-
-  //     // Mark processing as failed
-  //     await session.completeProcessing(false);
-  //     session.errors.push(error.message);
-  //     session.lastError = {
-  //       message: error.message,
-  //       timestamp: new Date(),
-  //       code: 'PROCESSING_FAILED'
-  //     };
-  //     await session.save();
-
-  //     // Update test status to failed
-  //     const test = await Test.findById(session.test);
-  //     await test.updateStatus('failed', userId);
-
-  //     // Log processing failure
-  //     await auditService.log({
-  //       action: 'diagnosis_failed',
-  //       userId: userId,
-  //       resourceType: 'diagnosis',
-  //       resourceId: session.sessionId,
-  //       details: {
-  //         sessionId: session.sessionId,
-  //         error: error.message,
-  //         filesAttempted: session.getValidFiles().length
-  //       },
-  //       status: 'failure',
-  //       riskLevel: 'medium'
-  //     });
-
-  //     // Emit failure notification
-  //     socketService.emitToUser(userId, 'upload:processingFailed', {
-  //       sessionId: session.sessionId,
-  //       testId: session.testId,
-  //       error: error.message
-  //     });
-  //   }
-  // }
 
   /**
    * Cancel upload session
