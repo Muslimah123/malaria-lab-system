@@ -46,24 +46,24 @@ confidence = confidence <= 1 ? confidence * 100 : confidence;
   const getParasiteInfo = (type) => {
     const info = {
       'PF': {
-        severity: 'Most severe form',
-        description: 'Can cause cerebral malaria and organ failure',
-        color: 'text-red-400'
+        severity: 'Most severe form'
+        // description: 'Can cause cerebral malaria and organ failure',
+        // color: 'text-red-400'
       },
       'PM': {
-        severity: 'Moderate severity',
-        description: 'Can cause chronic infection',
-        color: 'text-orange-400'
+        severity: 'Moderate severity'
+        // description: 'Can cause chronic infection',
+        // color: 'text-orange-400'
       },
       'PO': {
-        severity: 'Mild to moderate',
-        description: 'Can remain dormant in liver',
-        color: 'text-yellow-400'
+        severity: 'Mild to moderate'
+        // description: 'Can remain dormant in liver',
+        // color: 'text-yellow-400'
       },
       'PV': {
-        severity: 'Mild to moderate',
-        description: 'Most widespread, can relapse',
-        color: 'text-green-400'
+        severity: 'Mild to moderate'
+        // description: 'Most widespread, can relapse',
+        // color: 'text-green-400'
       }
     };
     return info[type] || { severity: 'Unknown', description: '', color: 'text-gray-400' };
