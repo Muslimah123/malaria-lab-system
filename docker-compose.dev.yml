@@ -1,0 +1,312 @@
+# # docker-compose.dev.yml - Core services only
+# services:
+#   # Core Backend Services
+#   mongodb:
+#     image: mongo:6.0
+#     container_name: malaria-mongo-dev
+#     ports:
+#       - "27017:27017"
+#     volumes:
+#       - mongodb_data:/data/db
+#     networks:
+#       - malaria-network
+
+#   redis:
+#     image: redis:7-alpine
+#     container_name: malaria-redis-dev
+#     ports:
+#       - "6379:6379"
+#     networks:
+#       - malaria-network
+
+#   # Flask API (Diagnosis Service)
+#   flask-api:
+#     build:
+#       context: ./DiagnosisApi
+#       dockerfile: Dockerfile
+#     container_name: malaria-flask-api-dev
+#     ports:
+#       - "5001:5000"  # External port 5001, internal 5000
+#     volumes:
+#       - ./DiagnosisApi:/app  # Mount the entire app for hot-reloading
+#       - uploads_data:/app/shared_uploads  # Shared uploads with Node.js backend
+#     environment:
+#       - FLASK_ENV=development
+#       - LOG_LEVEL=debug
+#       - UPLOAD_FOLDER=/app/shared_uploads
+#       - PYTHONUNBUFFERED=1
+#       - PYTHONDONTWRITEBYTECODE=1
+#     networks:
+#       - malaria-network
+#     # ✅ NEW: Memory and resource limits to prevent OOMKilled
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 4G  # Limit to 4GB RAM
+#           cpus: '2.0'  # Limit to 2 CPU cores
+#         reservations:
+#           memory: 1G  # Reserve 1GB RAM
+#           cpus: '0.5'  # Reserve 0.5 CPU cores
+#     # ✅ NEW: Restart policy for automatic recovery
+#     restart: unless-stopped
+#     # ✅ NEW: Health check to monitor container health
+#     healthcheck:
+#       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+#       interval: 30s
+#       timeout: 10s
+#       retries: 3
+#       start_period: 60s
+#     # ✅ NEW: Memory monitoring and logging
+#     logging:
+#       driver: "json-file"
+#       options:
+#         max-size: "10m"
+#         max-file: "3"
+
+#   # Node.js Backend
+#   backend:
+#     build:
+#       context: ./server
+#       dockerfile: ../docker/Dockerfile.server
+#     platform: linux/amd64
+#     container_name: malaria-backend-dev
+#     ports:
+#       - "5000:5000"
+#     volumes:
+#       - ./server:/app  # Hot reload for development
+#       - /app/node_modules  # Prevent overwriting node_modules
+#       - uploads_data:/app/uploads  # Shared upload storage
+#     environment:
+#       - NODE_ENV=development
+#       - MONGODB_URI=mongodb://mongodb:27017/malaria_lab
+#       - REDIS_HOST=redis
+#       - REDIS_PORT=6379
+#       - REDIS_URL=redis://redis:6379
+#       - FLASK_API_URL=http://flask-api:5000  # Internal container communication
+#       - FLASK_API_TIMEOUT=600000  # 10 minutes timeout
+#       - FLASK_API_RETRY_ATTEMPTS=3
+#       - FLASK_API_RETRY_DELAY=5000
+#       - USE_SHARED_VOLUME=true
+#       - UPLOAD_DIR=/app/uploads
+#       - API_BASE_URL=http://localhost:5000
+#       - NODE_OPTIONS=--max-old-space-size=3072  # ✅ NEW: Limit Node.js heap to 3GB
+#     depends_on:
+#       - mongodb
+#       - redis
+#       - flask-api
+#     env_file:
+#       - ./server/.env
+#     networks:
+#       - malaria-network
+#     # ✅ NEW: Memory and resource limits to prevent OOMKilled
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 4G  # Limit to 4GB RAM
+#           cpus: '2.0'  # Limit to 2 CPU cores
+#         reservations:
+#           memory: 1G  # Reserve 1GB RAM
+#           cpus: '0.5'  # Reserve 0.5 CPU cores
+#     # ✅ NEW: Restart policy for automatic recovery
+#     restart: unless-stopped
+#     # ✅ NEW: Health check to monitor container health
+#     healthcheck:
+#       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+#       interval: 30s
+#       timeout: 10s
+#       retries: 3
+#       start_period: 60s
+#     # ✅ NEW: Memory monitoring and logging
+#     logging:
+#       driver: "json-file"
+#       options:
+#         max-size: "10m"
+#         max-file: "3"
+
+#   # Frontend
+#   frontend:
+#     build:
+#       context: ./client
+#       dockerfile: ../docker/Dockerfile.client
+#     platform: linux/amd64
+#     container_name: malaria-frontend-dev
+#     ports:
+#       - "3000:3000"
+#     volumes:
+#       - ./client:/app  # Hot reload for development
+#       - /app/node_modules  # Prevent overwriting node_modules
+#     environment:
+#       - REACT_APP_API_URL=http://localhost:5000
+#       - CHOKIDAR_USEPOLLING=true  # For file watching in containers
+#     depends_on:
+#       - backend
+#     networks:
+#       - malaria-network
+
+# volumes:
+#   mongodb_data:
+#   uploads_data:  # Shared volume for uploads
+
+# networks:
+#   malaria-network:
+#     driver: bridge
+
+# docker-compose.dev.yml - Core services only
+# ✅ FIXED: Consistent volume mounts between Flask and Node.js containers
+
+services:
+  # Core Backend Services
+  mongodb:
+    image: mongo:6.0
+    container_name: malaria-mongo-dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - malaria-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: malaria-redis-dev
+    ports:
+      - "6379:6379"
+    networks:
+      - malaria-network
+
+  # Flask API (Diagnosis Service)
+  flask-api:
+    build:
+      context: ./DiagnosisApi
+      dockerfile: Dockerfile
+    container_name: malaria-flask-api-dev
+    ports:
+      - "5001:5000"  # External port 5001, internal 5000
+    volumes:
+      - ./DiagnosisApi:/app  # Mount the entire app for hot-reloading
+      # ✅ FIXED: Use /app/uploads consistently
+      - uploads_data:/app/uploads  # Shared uploads with Node.js backend
+    environment:
+      - FLASK_ENV=development
+      - LOG_LEVEL=debug
+      # ✅ FIXED: Use /app/uploads instead of /app/shared_uploads
+      - UPLOAD_FOLDER=/app/uploads
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    networks:
+      - malaria-network
+    # ✅ NEW: Memory and resource limits to prevent OOMKilled
+    deploy:
+      resources:
+        limits:
+          memory: 4G  # Limit to 4GB RAM
+          cpus: '2.0'  # Limit to 2 CPU cores
+        reservations:
+          memory: 1G  # Reserve 1GB RAM
+          cpus: '0.5'  # Reserve 0.5 CPU cores
+    # ✅ NEW: Restart policy for automatic recovery
+    restart: unless-stopped
+    # ✅ NEW: Health check to monitor container health
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # ✅ NEW: Memory monitoring and logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Node.js Backend
+  backend:
+    build:
+      context: ./server
+      dockerfile: ../docker/Dockerfile.server
+    platform: linux/amd64
+    container_name: malaria-backend-dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server:/app  # Hot reload for development
+      - /app/node_modules  # Prevent overwriting node_modules
+      # ✅ FIXED: Use /app/uploads consistently (same as Flask)
+      - uploads_data:/app/uploads  # Shared upload storage
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/malaria_lab
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379
+      - FLASK_API_URL=http://flask-api:5000  # Internal container communication
+      - FLASK_API_TIMEOUT=600000  # 10 minutes timeout
+      - FLASK_API_RETRY_ATTEMPTS=3
+      - FLASK_API_RETRY_DELAY=5000
+      - USE_SHARED_VOLUME=true
+      # ✅ FIXED: Consistent upload directory
+      - UPLOAD_DIR=/app/uploads
+      # ✅ FIXED: Use correct public-facing URL
+      - API_BASE_URL=http://localhost:5000
+      - NODE_OPTIONS=--max-old-space-size=3072  # ✅ NEW: Limit Node.js heap to 3GB
+    depends_on:
+      - mongodb
+      - redis
+      - flask-api
+    env_file:
+      - ./server/.env
+    networks:
+      - malaria-network
+    # ✅ NEW: Memory and resource limits to prevent OOMKilled
+    deploy:
+      resources:
+        limits:
+          memory: 4G  # Limit to 4GB RAM
+          cpus: '2.0'  # Limit to 2 CPU cores
+        reservations:
+          memory: 1G  # Reserve 1GB RAM
+          cpus: '0.5'  # Reserve 0.5 CPU cores
+    # ✅ NEW: Restart policy for automatic recovery
+    restart: unless-stopped
+    # ✅ NEW: Health check to monitor container health
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # ✅ NEW: Memory monitoring and logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Frontend
+  frontend:
+    build:
+      context: ./client
+      dockerfile: ../docker/Dockerfile.client
+    platform: linux/amd64
+    container_name: malaria-frontend-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app  # Hot reload for development
+      - /app/node_modules  # Prevent overwriting node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+      - CHOKIDAR_USEPOLLING=true  # For file watching in containers
+    depends_on:
+      - backend
+    networks:
+      - malaria-network
+
+volumes:
+  mongodb_data:
+  uploads_data:  # Shared volume for uploads
+
+networks:
+  malaria-network:
+    driver: bridge

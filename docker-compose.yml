@@ -1,119 +1,82 @@
 services:
-  malaria-api:
+  mongodb:
+    image: mongo:6.0
+    container_name: malaria-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - malaria-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: malaria-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - malaria-network
+
+  # Flask ML/Diagnosis API Service
+  flask-api:
     build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: malaria-api
+      context: ./DiagnosisApi
+      dockerfile: ../docker/Dockerfile.flask
+    platform: linux/amd64
+    container_name: malaria-flask-api
     ports:
-      - "5006:5000"
-    volumes:
-      - ./Uploads:/app/uploads
-      - ./logs:/app/logs
-      - ./models:/app/models
-      - ./config/malaria-api:/app/config
+      - "5001:5001"
     environment:
-      - PYTHONUNBUFFERED=1
-      - FLASK_ENV=production
-      - YOLO_CONFIG_DIR=/app/config
+      - FLASK_ENV=development
+      - FLASK_PORT=5001
     networks:
-      - elk
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-      filebeat:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:5005"]
-      interval: 10s
-      retries: 5
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "5"
+      - malaria-network
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
-    container_name: elasticsearch
+  backend:
+    build:
+      context: ./server
+      dockerfile: ../docker/Dockerfile.server
+    platform: linux/amd64  
+    container_name: malaria-backend
     ports:
-      - "9200:9200"
-    volumes:
-      - elk_data:/usr/share/elasticsearch/data
-      - ./elk_config/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+      - "5000:5000"
     environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    networks:
-      - elk
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200"]
-      interval: 10s
-      retries: 5
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "5"
-
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.15.0
-    container_name: filebeat
-    user: root
-    command: ["filebeat", "-e", "--strict.perms=false"]
-    volumes:
-      - ./elk_config/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - ./logs:/app/logs:ro
-    networks:
-      - elk
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongodb:27017/malaria_lab
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FLASK_API_URL=http://flask-api:5001  # Use service name
+      - FLASK_API_TIMEOUT=600000  # 10 minutes timeout
+      - FLASK_API_RETRY_ATTEMPTS=3
+      - FLASK_API_RETRY_DELAY=5000
+      - USE_SHARED_VOLUME=true
     depends_on:
-      elasticsearch:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "filebeat test output"]
-      interval: 10s
-      retries: 5
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "5"
+      - mongodb
+      - redis
+      - flask-api
+    env_file:
+      - ./server/.env
+    networks:
+      - malaria-network
 
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.15.0
-    container_name: kibana
+  frontend:
+    build:
+      context: ./client
+      dockerfile: ../docker/Dockerfile.client
+    platform: linux/amd64 
+    container_name: malaria-frontend
     ports:
-      - "5601:5601"
-    volumes:
-      - ./elk_config/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
-      - kb_data:/usr/share/kibana/data
+      - "3000:3000"
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    networks:
-      - elk
+      - REACT_APP_API_URL=http://localhost:5000  # For browser requests
     depends_on:
-      elasticsearch:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status"]
-      interval: 10s
-      retries: 5
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "5"
+      - backend
+    networks:
+      - malaria-network
 
 volumes:
-  elk_data:
-    driver: local
-  kb_data:
-    driver: local
+  mongodb_data:
 
 networks:
-  elk:
+  malaria-network:
     driver: bridge

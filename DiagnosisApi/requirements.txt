@@ -1,0 +1,6 @@
+Flask
+Werkzeug
+psycopg2-binary
+pillow
+scikit-image
+psutil

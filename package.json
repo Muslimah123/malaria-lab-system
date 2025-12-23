@@ -1,0 +1,14 @@
+{
+  "name": "malaria-lab-system",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "cd server && npm run dev",
+    "client:dev": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "test": "npm run test:server && npm run test:client",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "workspaces": ["client", "server", "shared"]
+}
