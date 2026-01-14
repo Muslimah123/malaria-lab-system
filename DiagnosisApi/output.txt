@@ -1,0 +1,31 @@
+CONTAINER ID   IMAGE                                                  COMMAND                  CREATED              STATUS                             PORTS                               NAMES
+5b8f7cd543c0   docker.elastic.co/kibana/kibana:8.15.0                 "/bin/tini -- /usr/l…"   32 seconds ago       Up 31 seconds (healthy)            0.0.0.0:5601->5601/tcp              kibana
+4f36046ed46e   docker.elastic.co/beats/filebeat:8.15.0                "/usr/bin/tini -- /u…"   32 seconds ago       Up 31 seconds (healthy)                                                filebeat
+da1c44caf2e4   docker.elastic.co/elasticsearch/elasticsearch:8.15.0   "/bin/tini -- /usr/l…"   About a minute ago   Up About a minute (healthy)        0.0.0.0:9200->9200/tcp, 9300/tcp    elasticsearch
+bee89c019540   diagnosisapi-malaria-api                               "python run.py"          2 minutes ago        Up 21 seconds (health: starting)   0.0.0.0:5001->5000/tcp              malaria-api
+5db215af7fd8   malaria-diagnosis-api:latest                           "python run.py"          4 hours ago          Exited (0) 2 hours ago                                                 priceless_fermat
+ab36e56b218a   36f9c4fcbc8d                                           "python run.py"          4 hours ago          Exited (137) 4 hours ago                                               great_austin
+64a98b83b1d0   3b678eab5d08                                           "python run.py"          4 hours ago          Exited (0) 4 hours ago                                                 musing_moore
+4eb71fa2a1b7   1d48c96105cb                                           "python run.py"          5 hours ago          Exited (0) 5 hours ago                                                 tender_volhard
+5dc6b6f77fc0   8680db540281                                           "python run.py"          5 hours ago          Exited (0) 5 hours ago                                                 upbeat_montalcini
+45c08d871866   8680db540281                                           "python run.py"          5 hours ago          Exited (255) 5 hours ago           0.0.0.0:5000->5000/tcp              nervous_benz
+4fefbc7d2614   8680db540281                                           "python run.py"          5 hours ago          Exited (255) 5 hours ago           0.0.0.0:5000->5000/tcp              objective_galois
+a788fdf8fec8   ad575284717b                                           "python run.py"          5 hours ago          Exited (1) 5 hours ago                                                 naughty_haslett
+d4a6ffd43b5e   mysql:8.0                                              "docker-entrypoint.s…"   2 days ago           Up 5 hours                         0.0.0.0:3306->3306/tcp, 33060/tcp   mysql_db
+19ef49bce08f   apache/airflow:3.0.1                                   "/usr/bin/dumb-init …"   9 days ago           Exited (0) 9 days ago                                                  airflowlearning-airflow-scheduler-run-36328df8f12d
+7cc9f832e36e   elk-flask-monitoring-flask-app                         "python app.py"          2 weeks ago          Exited (255) 9 days ago            0.0.0.0:5000->5000/tcp              flask-app
+9b988c041f9a   docker.elastic.co/apm/apm-server:8.10.2                "/usr/bin/tini -- /u…"   2 weeks ago          Exited (255) 9 days ago            0.0.0.0:8200->8200/tcp              apm-server
+519f1f1f966e   mysql:8.0                                              "docker-entrypoint.s…"   2 weeks ago          Exited (0) 11 days ago                                                 mysql
+9ceee743da7b   mysql                                                  "docker-entrypoint.s…"   4 weeks ago          Exited (0) 4 weeks ago                                                 some-mysql
+9b4900343e02   my-flask-app:latest                                    "python app.py"          5 weeks ago          Created                                                                flask_app
+ee08159f7194   docker.elastic.co/beats/filebeat:8.15.0                "/usr/bin/tini -- /u…"   5 weeks ago          Created                                                                elk-metricbeat-demo-filebeat-1
+d225d4e0efb9   docker.elastic.co/apm/apm-server:8.15.0                "/usr/bin/tini -- /u…"   5 weeks ago          Created                                                                elk-metricbeat-demo-apm-server-1
+705f5af43d3e   docker.elastic.co/kibana/kibana:8.15.0                 "/bin/tini -- /usr/l…"   5 weeks ago          Created                                                                elk-metricbeat-demo-kibana-1
+d5aa443e819b   docker.elastic.co/elasticsearch/elasticsearch:8.15.0   "/usr/local/bin/set-…"   5 weeks ago          Created                                                                elk-metricbeat-demo-elasticsearch-init-1
+4bfdc799eafd   docker.elastic.co/elasticsearch/elasticsearch:8.15.0   "/bin/tini -- /usr/l…"   5 weeks ago          Created                                                                elk-metricbeat-demo-elasticsearch-1
+96b17782d155   docker.elastic.co/logstash/logstash:8.7.1              "/usr/local/bin/dock…"   5 weeks ago          Exited (127) 5 weeks ago                                               es1-logstash01-1
+05bb4e7733dd   docker.elastic.co/beats/metricbeat:8.7.1               "/usr/bin/tini -- /u…"   5 weeks ago          Exited (127) 5 weeks ago                                               es1-metricbeat01-1
+ac63fefbbb91   docker.elastic.co/beats/filebeat:8.7.1                 "/usr/bin/tini -- /u…"   5 weeks ago          Exited (127) 5 weeks ago                                               es1-filebeat01-1
+5e84e5b32788   docker.elastic.co/kibana/kibana:8.7.1                  "/bin/tini -- /usr/l…"   5 weeks ago          Exited (0) 5 weeks ago                                                 es1-kibana-1
+a75a12d78ed0   docker.elastic.co/elasticsearch/elasticsearch:8.7.1    "/bin/tini -- /usr/l…"   5 weeks ago          Exited (143) 5 weeks ago                                               es1-es01-1
+b7591f282d5c   docker.elastic.co/elasticsearch/elasticsearch:8.7.1    "/bin/tini -- /usr/l…"   5 weeks ago          Exited (0) 5 weeks ago                                                 es1-setup-1

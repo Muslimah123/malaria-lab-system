@@ -13,3 +13,35 @@ Thumbs.db
 
 # Others
 *.sh
+**/__pycache__/
+*.pyc
+DiagnosisApi/uploads/
+DiagnosisApi/shared_uploads/
+
+# Python environment and cache
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environments
+.env
+.venv
+env/
+venv/
+
+# Large Model weights (keep only what you need)
+*.pt
+*.onnx
+
+
+# Test outputs and logs
+*.log
+DiagnosisApi/uploads/
+DiagnosisApi/shared_uploads/
+DiagnosisApi/*.png
+DiagnosisApi/*.json

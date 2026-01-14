@@ -1,0 +1,19 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /app/logs/app.log
+    fields:
+      app: malaria-diagnosis-api
+    fields_under_root: true
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "filebeat-malaria-%{[agent.version]}-%{+yyyy.MM.dd}"
+
+setup.template.name: "filebeat-malaria"
+setup.template.pattern: "filebeat-malaria-*"
+
+logging.level: info
+logging.to_files: false
+logging.to_stderr: true
