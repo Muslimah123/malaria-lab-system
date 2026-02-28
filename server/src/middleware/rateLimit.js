@@ -91,8 +91,9 @@ const generalLimiter = createRateLimiter({
  * Authentication rate limiter (stricter for login attempts)
  */
 const loginLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login requests per windowMs
+  // Reduced from 15 minutes to 1 minute and increased allowance to reduce lockouts
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // Limit each IP to 10 login requests per windowMs
   skipSuccessfulRequests: true, // Don't count successful requests
   keyGenerator: (req) => `login:${req.ip}`, // Always use IP for login attempts
   handler: (req, res) => {
@@ -104,8 +105,8 @@ const loginLimiter = createRateLimiter({
 
     res.status(429).json({
       success: false,
-      message: 'Too many login attempts, please try again in 15 minutes.',
-      retryAfter: 900 // 15 minutes in seconds
+      message: 'Too many login attempts, please try again later.',
+      retryAfter: Math.round(options?.windowMs ? options.windowMs / 1000 : 60)
     });
   }
 });

@@ -203,6 +203,8 @@ class App {
       process.env.FRONTEND_URL || 'http://localhost:3000',
       'http://localhost:3000', // Development fallback
       'http://localhost:3001', // Alternative development port
+      'http://localhost:3002', // Frontend mapped to 3002 in dev compose
+      'http://127.0.0.1:3002', // include loopback variant
     ];
 
     // Add additional origins from environment
@@ -320,7 +322,7 @@ class App {
         },
         limits: {
           maxFileSize: '10MB',
-          maxFilesPerUpload: 20,
+          maxFilesPerUpload: 50,  // Increased for hospital use
           requestTimeout: '5 minutes'
         },
         documentation: '/api-docs'

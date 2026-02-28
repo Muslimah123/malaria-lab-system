@@ -2129,6 +2129,99 @@ const SampleUpload = () => {
     }
   }, [localSession?.sessionId, currentSession?.sessionId, dispatch]);
 
+  // ✅ NEW: Fallback polling for processing status when WebSocket fails
+  useEffect(() => {
+    const sessionId = localSession?.sessionId || currentSession?.sessionId;
+
+    // Only poll during PROCESSING step
+    if (currentStep !== UPLOAD_STEPS.PROCESSING || !sessionId) {
+      return;
+    }
+
+    console.log('🔄 Starting fallback progress polling for session:', sessionId);
+
+    const pollProgress = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/diagnosis/status/${sessionId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('🔄 Fallback poll result:', data);
+
+          // Update Redux state with polled data
+          if (data.status === 'completed') {
+            dispatch(handleSocketUpdate({
+              type: 'upload:processingCompleted',
+              data: {
+                sessionId,
+                stage: 'completed',
+                overall: 100,
+                result: data.result
+              }
+            }));
+            setCurrentStep(UPLOAD_STEPS.COMPLETE);
+          } else if (data.status === 'failed') {
+            dispatch(handleSocketUpdate({
+              type: 'upload:processingFailed',
+              data: {
+                sessionId,
+                error: data.lastError?.message || 'Processing failed'
+              }
+            }));
+          } else if (data.status === 'processing') {
+            // Update progress from poll
+            dispatch(handleSocketUpdate({
+              type: 'upload:processingProgress',
+              data: {
+                sessionId,
+                stage: data.stage || 'analysis',
+                progress: data.progress || 50,
+                overall: data.progress || 50,
+                processedFiles: data.processedFiles,
+                totalFiles: data.totalFiles,
+                currentFile: `Processing ${data.processedFiles || 0}/${data.totalFiles || 0} images...`
+              }
+            }));
+          } else if (data.status === 'uploaded') {
+            // Files uploaded but processing hasn't started yet - show waiting state
+            console.log('🔄 Files uploaded, waiting for processing to start...');
+            dispatch(handleSocketUpdate({
+              type: 'upload:processingProgress',
+              data: {
+                sessionId,
+                stage: 'queued',
+                progress: 5,
+                overall: 5,
+                processedFiles: 0,
+                totalFiles: data.totalFiles,
+                currentFile: 'Preparing to analyze images...'
+              }
+            }));
+          }
+        }
+      } catch (error) {
+        console.warn('🔄 Fallback poll failed:', error.message);
+      }
+    };
+
+    // Poll every 5 seconds as fallback
+    const pollInterval = setInterval(pollProgress, 5000);
+
+    // Initial poll
+    pollProgress();
+
+    return () => {
+      console.log('🔄 Stopping fallback progress polling');
+      clearInterval(pollInterval);
+    };
+  }, [currentStep, localSession?.sessionId, currentSession?.sessionId, dispatch]);
+
   // Save session state periodically
   useEffect(() => {
     if (patientData || selectedFiles.length > 0) {

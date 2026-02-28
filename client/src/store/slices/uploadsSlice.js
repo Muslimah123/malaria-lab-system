@@ -339,17 +339,19 @@ const uploadsSlice = createSlice({
         case 'upload:processingProgress':
           if (data.sessionId) {
             if (!state.uploadProgress[data.sessionId]) {
-              state.uploadProgress[data.sessionId] = { 
-                overall: 0, 
-                files: {}, 
+              state.uploadProgress[data.sessionId] = {
+                overall: 0,
+                files: {},
                 stage: 'processing',
                 currentFile: 'Processing...',
                 processedFiles: 0,
                 totalFiles: 0,
-                estimatedTimeRemaining: 180
+                estimatedTimeRemaining: 180,
+                imageProgress: null,
+                analysisMode: null
               };
             }
-            
+
             state.uploadProgress[data.sessionId] = {
               ...state.uploadProgress[data.sessionId],
               overall: data.progress || data.overall,
@@ -357,8 +359,16 @@ const uploadsSlice = createSlice({
               currentFile: data.currentFile,
               processedFiles: data.processedFiles,
               totalFiles: data.totalFiles,
-              estimatedTimeRemaining: data.estimatedTimeRemaining
+              estimatedTimeRemaining: data.estimatedTimeRemaining,
+              // ✅ NEW: Include per-image progress for parallel processing display
+              imageProgress: data.imageProgress || state.uploadProgress[data.sessionId].imageProgress,
+              analysisMode: data.analysisMode || state.uploadProgress[data.sessionId].analysisMode
             };
+
+            // Log progress for debugging
+            if (data.imageProgress) {
+              console.log(`🔄 Image progress: ${data.imageProgress.completed}/${data.imageProgress.total}`);
+            }
           }
           break;
         case 'upload:processingCompleted':

@@ -223,6 +223,16 @@ class SocketService {
         }
       });
 
+      // Remove from rooms tracking
+      this.rooms.forEach((sockets, roomName) => {
+        if (sockets.has(socket.id)) {
+          sockets.delete(socket.id);
+          if (sockets.size === 0) {
+            this.rooms.delete(roomName);
+          }
+        }
+      });
+
       // Notify supervisors about technician disconnections
       if (role === USER_ROLES.TECHNICIAN) {
         this.emitToRole(USER_ROLES.SUPERVISOR, 'technician-offline', {

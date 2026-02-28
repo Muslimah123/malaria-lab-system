@@ -86,7 +86,7 @@ export const BLOOD_TYPES = [
 
 // Upload Configuration
 export const UPLOAD_CONFIG = {
-  MAX_FILES: 10,
+  MAX_FILES: 50,  // Increased for hospital use - processing multiple blood smear images
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/tiff'],
   CHUNK_SIZE: 1024 * 1024, // 1MB chunks

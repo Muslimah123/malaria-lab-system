@@ -981,6 +981,10 @@ class DiagnosisController {
       const diagnosisResult = await diagnosisService.analyzeSample(imagePaths);
       logger.info(`Flask API returned: Status=${diagnosisResult.status}, Parasites=${diagnosisResult.totalParasites}, WBCs=${diagnosisResult.totalWbcs}`);
 
+      // Debug: Log timing data
+      logger.info(`Timing data received: ${JSON.stringify(diagnosisResult.timing)}`);
+      logger.info(`Model type received: ${diagnosisResult.modelType}`);
+
       // ✅ COMPLETELY FIXED: Save the diagnosis result with correct field mapping
       const newDiagnosisResult = new DiagnosisResult({
         test: test._id, // ✅ FIXED: Add required test field
@@ -997,12 +1001,19 @@ class DiagnosisController {
         totalWbcs: diagnosisResult.totalWbcs, // ✅ FIXED: Use new field name
         totalImagesAttempted: diagnosisResult.totalImagesAttempted, // ✅ FIXED: Use new field name
         analysisSummary: diagnosisResult.analysisSummary, // ✅ FIXED: Add missing field
-        
+
+        // ✅ NEW: Add model type and timing statistics
+        modelType: diagnosisResult.modelType || 'ONNX',
+        // Only set timing if it has actual values (not all zeros)
+        timing: diagnosisResult.timing && diagnosisResult.timing.total_ms > 0
+          ? diagnosisResult.timing
+          : undefined,
+
         // ✅ FIXED: Add processing metadata
         apiResponse: {
           rawResponse: diagnosisResult,
           processingTime: diagnosisResult.processingMetadata?.processingTime || Date.now(),
-          modelVersion: 'V12.pt',
+          modelVersion: diagnosisResult.modelType || 'ONNX',
           apiVersion: '1.0',
           callTimestamp: new Date()
         }
@@ -1013,6 +1024,10 @@ class DiagnosisController {
 
       await newDiagnosisResult.save();
       logger.info(`Diagnosis result saved with ID: ${newDiagnosisResult._id}`);
+
+      // Debug: Log saved timing data
+      logger.info(`Saved timing data: ${JSON.stringify(newDiagnosisResult.timing)}`);
+      logger.info(`Saved modelType: ${newDiagnosisResult.modelType}`);
 
       // Update the test status
       test.status = 'completed';
@@ -1549,6 +1564,112 @@ class DiagnosisController {
       next(error);
     }
   }
+
+  /**
+   * Get processing status for an upload session (fallback for WebSocket)
+   * This endpoint is used when WebSocket connection fails or for polling
+   */
+  async getProcessingStatus(req, res, next) {
+    try {
+      const { sessionId } = req.params;
+      const UploadSession = require('../models/UploadSession');
+
+      // Find the upload session
+      const session = await UploadSession.findOne({ sessionId });
+
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Upload session not found',
+          status: 'not_found'
+        });
+      }
+
+      // Determine status based on session state
+      // IMPORTANT: session.status === 'completed' only means files are UPLOADED,
+      // not that ML processing is complete. We must verify actual processing completion.
+      let status = 'processing';
+      let result = null;
+
+      // Check if ML processing has actually completed (not just file upload)
+      const processingActuallyCompleted =
+        session.processing?.completedAt ||
+        session.processing?.stages?.apiSubmission?.status === 'completed';
+
+      // Try to get the diagnosis result (this is the definitive indicator of completion)
+      const diagnosisResult = session.testId
+        ? await DiagnosisResult.findOne({ testId: session.testId })
+        : null;
+
+      if (diagnosisResult) {
+        // DiagnosisResult exists = processing is truly complete
+        status = 'completed';
+        result = {
+          testId: diagnosisResult.testId,
+          status: diagnosisResult.status,
+          totalParasites: diagnosisResult.totalParasites,
+          totalWbcs: diagnosisResult.totalWbcs,
+          severity: diagnosisResult.severity?.level,
+          mostProbableParasite: diagnosisResult.mostProbableParasite
+        };
+      } else if (processingActuallyCompleted && session.status === 'completed') {
+        // Processing finished but no result yet (edge case)
+        status = 'completed';
+      } else if (session.status === 'failed' || session.status === 'cancelled') {
+        status = 'failed';
+      } else if (session.processing?.isProcessing) {
+        // Actively processing
+        status = 'processing';
+      } else if (session.status === 'completed' && !processingActuallyCompleted) {
+        // Files uploaded but processing hasn't started yet - treat as "ready to process"
+        status = 'uploaded';
+      }
+
+      // Calculate progress based on actual status
+      const uploadedFiles = session.files?.filter(f => f.status === 'completed') || [];
+      const totalFiles = session.files?.length || 0;
+
+      // Progress calculation depends on actual processing state
+      let progress;
+      let stage = session.processing?.currentStage || 'unknown';
+
+      if (status === 'completed') {
+        progress = 100;
+        stage = 'completed';
+      } else if (status === 'uploaded') {
+        // Files uploaded but processing not started - show minimal progress
+        progress = 5;
+        stage = 'queued';
+      } else if (status === 'processing') {
+        // Use processing stage progress if available, otherwise estimate
+        progress = session.processing?.progress ||
+          (totalFiles > 0 ? Math.round((uploadedFiles.length / totalFiles) * 50) + 10 : 10);
+      } else {
+        progress = 0;
+      }
+
+      logger.info(`Processing status for ${sessionId}: status=${status}, progress=${progress}, isProcessing=${session.processing?.isProcessing}, sessionStatus=${session.status}`);
+
+      res.json({
+        success: true,
+        sessionId,
+        status,
+        progress,
+        stage,
+        totalFiles,
+        processedFiles: uploadedFiles.length,
+        isProcessing: session.processing?.isProcessing || false,
+        result,
+        lastError: session.lastError,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      logger.error('Get processing status error:', error);
+      next(new AppError('Failed to get processing status', 500));
+    }
+  }
+
 }
 
 module.exports = new DiagnosisController();

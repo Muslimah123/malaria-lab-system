@@ -1,7 +1,7 @@
 
 // src/components/results/DiagnosisCard.jsx
 import React from 'react';
-import { CheckCircle, XCircle, AlertTriangle, Target, Activity, TrendingUp, Brain } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Target, Activity, TrendingUp, Brain, Clock, Zap } from 'lucide-react';
 import SeverityBadge from './SeverityBadge';
 
 const DiagnosisCard = ({ result, images = [] }) => {
@@ -10,6 +10,8 @@ const DiagnosisCard = ({ result, images = [] }) => {
   // Debug: Log the result data
   console.log('🔍 DiagnosisCard result:', result);
   console.log('🔍 DiagnosisCard result.status:', result.status);
+  console.log('🔍 DiagnosisCard result.timing:', result.timing);
+  console.log('🔍 DiagnosisCard result.modelType:', result.modelType);
   console.log('🔍 DiagnosisCard images:', images);
 
   // Fix: Check for both POS and POSITIVE status values, and also check actual parasite count
@@ -305,10 +307,10 @@ const DiagnosisCard = ({ result, images = [] }) => {
                    'Very Low'}
                 </span>
               </div>
-              
+
               {/* Advanced Progress Bar */}
               <div className="relative w-full bg-gradient-to-r from-white/10 to-white/20 rounded-full h-2 backdrop-blur-sm border border-white/20">
-                <div 
+                <div
                   className={`h-2 rounded-full transition-all duration-1000 ease-out relative overflow-hidden ${
                     result.parasiteWbcRatio >= 10 ? 'bg-gradient-to-r from-rose-400 to-rose-600' :
                     result.parasiteWbcRatio >= 5 ? 'bg-gradient-to-r from-rose-400 to-rose-600' :
@@ -321,6 +323,69 @@ const DiagnosisCard = ({ result, images = [] }) => {
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse" />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Timing Statistics */}
+          {result.timing && (
+            <div className="mt-6 p-4 bg-gradient-to-br from-cyan-500/10 via-cyan-500/5 to-transparent rounded-xl border border-cyan-500/20 backdrop-blur-sm">
+              <div className="flex items-center mb-4">
+                <div className="p-2 bg-cyan-500/20 rounded-lg mr-3 border border-cyan-500/30">
+                  <Zap className="w-4 h-4 text-cyan-400" />
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-cyan-300">Inference Performance</span>
+                  <span className="text-xs text-cyan-400 ml-2 px-2 py-0.5 bg-cyan-500/20 rounded-full">
+                    {result.modelType || 'ONNX'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex justify-between items-center p-2 bg-white/5 rounded-lg">
+                  <span className="text-cyan-200">Preprocess:</span>
+                  <span className="text-white font-medium">
+                    {typeof result.timing.totalPreprocess_ms === 'number' ? `${result.timing.totalPreprocess_ms.toFixed(0)}ms` : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-white/5 rounded-lg">
+                  <span className="text-cyan-200">Inference:</span>
+                  <span className="text-white font-medium">
+                    {typeof result.timing.totalInference_ms === 'number' ? `${result.timing.totalInference_ms.toFixed(0)}ms` : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-white/5 rounded-lg">
+                  <span className="text-cyan-200">Postprocess:</span>
+                  <span className="text-white font-medium">
+                    {typeof result.timing.totalPostprocess_ms === 'number' ? `${result.timing.totalPostprocess_ms.toFixed(0)}ms` : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                  <span className="text-cyan-200 font-medium">Total:</span>
+                  <span className="text-cyan-300 font-bold">
+                    {typeof result.timing.total_ms === 'number' ?
+                      (result.timing.total_ms >= 1000 ?
+                        `${(result.timing.total_ms / 1000).toFixed(2)}s` :
+                        `${result.timing.total_ms.toFixed(0)}ms`)
+                      : '-'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Average per image */}
+              {typeof result.timing.avg_ms === 'number' && images.length > 1 && (
+                <div className="mt-3 pt-3 border-t border-cyan-500/20 flex items-center justify-between">
+                  <span className="text-xs text-cyan-200 flex items-center">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Avg per image:
+                  </span>
+                  <span className="text-xs text-cyan-300 font-medium">
+                    {result.timing.avg_ms >= 1000 ?
+                      `${(result.timing.avg_ms / 1000).toFixed(2)}s` :
+                      `${result.timing.avg_ms.toFixed(0)}ms`}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -66,7 +66,7 @@ const upload = multer({
   fileFilter: fileFilter,
   limits: {
     fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB default
-    files: parseInt(process.env.MAX_FILES_PER_REQUEST) || 20, // 20 files max
+    files: parseInt(process.env.MAX_FILES_PER_REQUEST) || 50, // 50 files max for hospital use
     fields: 10,
     fieldNameSize: 100,
     fieldSize: 1024 * 1024, // 1MB for form fields
@@ -464,7 +464,7 @@ const trackUploadEnd = (req, res, next) => {
 };
 
 module.exports = {
-  fileUpload: enhancedFileUpload('files'),
+  fileUpload: enhancedFileUpload('files', 50), // 50 files max for hospital use
   singleFileUpload: upload.single('file'),
   handleUploadError,
   cleanupOnError,

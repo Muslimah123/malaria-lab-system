@@ -569,8 +569,78 @@ const ProcessingStatus = ({
         )}
       </div>
 
+      {/* ✅ NEW: Per-Image Progress Display */}
+      {currentProgress.imageProgress && (
+        <div className="mb-8">
+          <h4 className="text-lg font-semibold text-white mb-6 flex items-center space-x-2">
+            <Microscope className="w-5 h-5 text-cyan-400" />
+            <span>Image Analysis Progress</span>
+            <span className="text-sm font-normal text-cyan-300 ml-2">
+              (Parallel Processing)
+            </span>
+          </h4>
+
+          {/* Image Progress Bar */}
+          <div className="bg-black/20 rounded-xl p-6 border border-cyan-500/30 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                  <FileImage className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold">
+                    {currentProgress.imageProgress.completed} / {currentProgress.imageProgress.total} Images
+                  </p>
+                  <p className="text-cyan-300 text-sm">
+                    {currentProgress.imageProgress.currentImage || 'Processing...'}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-cyan-400">
+                  {currentProgress.imageProgress.percentage?.toFixed(1) || 0}%
+                </p>
+              </div>
+            </div>
+
+            {/* Individual Image Progress Bar */}
+            <div className="w-full bg-black/30 rounded-full h-3 mb-4">
+              <div
+                className="bg-gradient-to-r from-cyan-500 to-blue-500 h-3 rounded-full transition-all duration-500"
+                style={{ width: `${currentProgress.imageProgress.percentage || 0}%` }}
+              />
+            </div>
+
+            {/* Running Stats */}
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div className="bg-white/5 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-rose-400">
+                  {currentProgress.imageProgress.parasitesFound || 0}
+                </p>
+                <p className="text-xs text-gray-400">Parasites Found</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-blue-400">
+                  {currentProgress.imageProgress.wbcsFound || 0}
+                </p>
+                <p className="text-xs text-gray-400">WBCs Found</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-green-400">
+                  {currentProgress.imageProgress.timing?.total_ms
+                    ? `${(currentProgress.imageProgress.timing.total_ms / 1000).toFixed(1)}s`
+                    : '-'
+                  }
+                </p>
+                <p className="text-xs text-gray-400">Last Image Time</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ✅ ENHANCED: Stage Details with Advanced Design */}
-      {currentProgress.stage === 'processing' && (
+      {currentProgress.stage === 'processing' && !currentProgress.imageProgress && (
         <div className="mb-8">
           <h4 className="text-lg font-semibold text-white mb-6 flex items-center space-x-2">
             <Layers className="w-5 h-5 text-purple-400" />
@@ -583,8 +653,8 @@ const ProcessingStatus = ({
                   <span className="text-white font-medium">{detail.label}</span>
                   <div className="flex items-center space-x-2">
                     <span className={`text-xs px-2 py-1 rounded-full ${
-                      detail.status.includes('Complete') 
-                        ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                      detail.status.includes('Complete')
+                        ? 'bg-green-500/20 text-green-300 border border-green-500/30'
                         : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
                     }`}>
                       {detail.status}
@@ -605,21 +675,32 @@ const ProcessingStatus = ({
           <Settings className="w-5 h-5 text-blue-400" />
           <span>Processing Configuration</span>
         </h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white/5 rounded-lg p-4 border border-white/10">
             <div className="flex items-center space-x-2 mb-2">
               <Brain className="w-4 h-4 text-purple-400" />
               <span className="text-gray-300 text-sm font-medium">Mode</span>
             </div>
-            <p className="text-white font-semibold capitalize">Advanced AI Processing</p>
+            <p className="text-white font-semibold capitalize">
+              {currentProgress.analysisMode === 'parallel' ? 'Parallel Processing' : 'AI Processing'}
+            </p>
+          </div>
+          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+            <div className="flex items-center space-x-2 mb-2">
+              <Cpu className="w-4 h-4 text-cyan-400" />
+              <span className="text-gray-300 text-sm font-medium">Workers</span>
+            </div>
+            <p className="text-white font-semibold">
+              {currentProgress.analysisMode === 'parallel' ? 'Multi-threaded' : 'Standard'}
+            </p>
           </div>
           <div className="bg-white/5 rounded-lg p-4 border border-white/10">
             <div className="flex items-center space-x-2 mb-2">
               <Target className="w-4 h-4 text-green-400" />
-              <span className="text-gray-300 text-sm font-medium">Features</span>
+              <span className="text-gray-300 text-sm font-medium">Detection</span>
             </div>
             <p className="text-white text-sm">
-              Parasite detection, WBC counting, confidence scoring
+              PF, PM, PO, PV + WBC
             </p>
           </div>
           <div className="bg-white/5 rounded-lg p-4 border border-white/10">
@@ -627,7 +708,7 @@ const ProcessingStatus = ({
               <Zap className="w-4 h-4 text-yellow-400" />
               <span className="text-gray-300 text-sm font-medium">Model</span>
             </div>
-            <p className="text-white font-mono text-sm">YOLO V12.pt</p>
+            <p className="text-white font-mono text-sm">ONNX Runtime</p>
           </div>
         </div>
       </div>

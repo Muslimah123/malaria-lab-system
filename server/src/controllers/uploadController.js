@@ -17,7 +17,7 @@ class UploadController {
    */
   async createUploadSession(req, res, next) {
     try {
-      const { testId, maxFiles = 10, maxFileSize = 10485760 } = req.body; 
+      const { testId, maxFiles = 50, maxFileSize = 10485760 } = req.body;  // Increased for hospital use 
       const user = req.user;
 
       // Verify test exists and user has access
@@ -483,12 +483,44 @@ async processFilesAsync(session, userId) {
     await session.markProcessingStage('apiSubmission', 'in_progress');
 
     // Send progress update before calling Flask API
-    sendProgressUpdate('analysis', 60, { 
-      currentFile: 'AI analysis in progress...' 
+    sendProgressUpdate('analysis', 50, {
+      currentFile: 'AI analysis starting...',
+      analysisMode: 'parallel'
     });
 
-    // ✅ FIXED: Call Flask diagnosis API (now returns correct format)
-    const diagnosisResult = await diagnosisService.analyzeSample(imagePaths);
+    // ✅ NEW: Per-image progress tracking
+    let imagesProcessed = 0;
+    const totalImages = validFiles.length;
+
+    const onImageProgress = (progressData) => {
+      imagesProcessed = progressData.completed;
+      const analysisProgress = 50 + Math.round((progressData.completed / progressData.total) * 35); // 50-85%
+
+      // Send per-image progress update
+      socketService.emitToUploadSession(session.sessionId, userId, 'upload:processingProgress', {
+        sessionId: session.sessionId,
+        stage: 'analysis',
+        progress: analysisProgress,
+        overall: analysisProgress,
+        totalFiles: totalImages,
+        processedFiles: progressData.completed,
+        currentFile: `Analyzing image ${progressData.completed}/${progressData.total}: ${progressData.currentImage}`,
+        imageProgress: {
+          completed: progressData.completed,
+          total: progressData.total,
+          percentage: progressData.percentage,
+          currentImage: progressData.currentImage,
+          parasitesFound: progressData.imageResult?.parasiteCount || 0,
+          wbcsFound: progressData.imageResult?.wbcCount || 0,
+          timing: progressData.imageResult?.timing || null
+        }
+      });
+
+      logger.info(`Image ${progressData.completed}/${progressData.total} completed: ${progressData.currentImage}`);
+    };
+
+    // ✅ FIXED: Call Flask diagnosis API with streaming progress
+    const diagnosisResult = await diagnosisService.analyzeSampleWithProgress(imagePaths, onImageProgress);
 
     logger.info(`Flask API returned: Status=${diagnosisResult.status}, Parasites=${diagnosisResult.totalParasites}, WBCs=${diagnosisResult.totalWbcs}`);
 
@@ -497,6 +529,10 @@ async processFilesAsync(session, userId) {
     sendProgressUpdate('reportGeneration', 85, { 
       currentFile: 'Generating diagnostic report...' 
     });
+
+    // Debug: Log timing data received from diagnosis service
+    logger.info(`Timing received from diagnosis service: ${JSON.stringify(diagnosisResult.timing)}`);
+    logger.info(`ModelType received: ${diagnosisResult.modelType}`);
 
     // ✅ COMPLETELY FIXED: Create diagnosis result record with correct field mapping
     const result = new DiagnosisResult({
@@ -513,6 +549,10 @@ async processFilesAsync(session, userId) {
       totalWbcs: diagnosisResult.totalWbcs, // ✅ FIXED: Use new field name
       totalImagesAttempted: diagnosisResult.totalImagesAttempted, // ✅ FIXED: Use new field name
       analysisSummary: diagnosisResult.analysisSummary, // ✅ FIXED: Add missing field
+
+      // ✅ NEW: Add model type and timing statistics
+      modelType: diagnosisResult.modelType || 'ONNX',
+      timing: diagnosisResult.timing || null,
       
       // ✅ FIXED: Process detections with correct field names
       detections: diagnosisResult.detections.map(detection => ({
@@ -550,6 +590,7 @@ async processFilesAsync(session, userId) {
     await result.save();
 
     logger.info(`DiagnosisResult saved: Status=${result.status}, Severity=${result.severity.level}, Parasites=${result.totalParasites}, WBCs=${result.totalWbcs}`);
+    logger.info(`Timing saved: ${JSON.stringify(result.timing)}, ModelType: ${result.modelType}`);
 
     // ✅ FIXED: Send final progress update with "completed" stage
     const sendFinalProgress = (stage, progress, details = {}) => {

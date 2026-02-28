@@ -61,11 +61,20 @@ class AuditService {
    * Validate audit log data
    */
   validateLogData(logData) {
-    const requiredFields = ['action', 'userId', 'resourceType', 'resourceId'];
-    
+    // Basic required fields for all audit logs
+    const requiredFields = ['action', 'resourceType', 'resourceId'];
+
     for (const field of requiredFields) {
       if (!logData[field]) {
         throw new Error(`Missing required audit field: ${field}`);
+      }
+    }
+
+    // For certain actions, userId is optional (e.g., failed login attempts)
+    const userOptionalActions = ['failed_login', 'unauthorized_access_attempt'];
+    if (!userOptionalActions.includes(logData.action)) {
+      if (!logData.userId) {
+        throw new Error('Missing required audit field: userId');
       }
     }
 

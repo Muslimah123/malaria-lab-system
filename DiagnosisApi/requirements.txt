@@ -4,3 +4,8 @@ psycopg2-binary
 pillow
 scikit-image
 psutil
+ultralytics
+opencv-python
+numpy
+requests
+onnxruntime

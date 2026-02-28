@@ -205,10 +205,29 @@ const diagnosisResultSchema = new mongoose.Schema({
     }
   },
   
+  // Model type used for inference
+  modelType: {
+    type: String,
+    enum: ['ONNX', 'PyTorch'],
+    default: 'ONNX'
+  },
+
+  // Timing statistics from inference
+  timing: {
+    totalPreprocess_ms: { type: Number, default: 0 },
+    totalInference_ms: { type: Number, default: 0 },
+    totalPostprocess_ms: { type: Number, default: 0 },
+    total_ms: { type: Number, default: 0 },
+    avgPreprocess_ms: { type: Number, default: 0 },
+    avgInference_ms: { type: Number, default: 0 },
+    avgPostprocess_ms: { type: Number, default: 0 },
+    avg_ms: { type: Number, default: 0 }
+  },
+
   // API call information
   apiResponse: {
-    rawResponse: mongoose.Schema.Types.Mixed, 
-    processingTime: Number, 
+    rawResponse: mongoose.Schema.Types.Mixed,
+    processingTime: Number,
     modelVersion: String,
     apiVersion: String,
     callTimestamp: {

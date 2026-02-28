@@ -80,7 +80,7 @@ router.use(auth);
 router.post('/session',
   requirePermission('canUploadSamples'),
   body('testId').notEmpty().withMessage('Test ID is required'),
-  body('maxFiles').optional().isInt({ min: 1, max: 20 }).withMessage('Max files must be between 1 and 20'),
+  body('maxFiles').optional().isInt({ min: 1, max: 50 }).withMessage('Max files must be between 1 and 50'),
   body('maxFileSize').optional().isInt({ min: 1024, max: 52428800 }).withMessage('Max file size must be between 1KB and 50MB'),
   validateRequest,
   uploadController.createUploadSession

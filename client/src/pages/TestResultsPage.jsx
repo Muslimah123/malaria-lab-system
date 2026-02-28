@@ -1,9 +1,9 @@
 // export default TestResultsPage;
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Download, 
-  Printer, 
+import {
+  Download,
+  Printer,
   ArrowLeft,
   User,
   TestTube,
@@ -32,7 +32,7 @@ const TestResultsPage = () => {
   // Extract testId from URL params using React Router
   const { testId } = useParams();
   const navigate = useNavigate();
-  
+
   // State management
   const [testResult, setTestResult] = useState(null);
   const [images, setImages] = useState([]);
@@ -282,7 +282,7 @@ const TestResultsPage = () => {
             </button>
             
             <div className="flex space-x-3">
-              <button 
+              <button
                 onClick={handleExportPDF}
                 disabled={exporting}
                 className="flex items-center px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all hover:scale-105 font-medium disabled:opacity-50"
@@ -290,7 +290,7 @@ const TestResultsPage = () => {
                 <Download className="w-4 h-4 mr-2" />
                 {exporting ? 'Exporting...' : 'Export PDF'}
               </button>
-              <button 
+              <button
                 onClick={handlePrint}
                 className="flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white rounded-lg transition-colors"
               >
@@ -305,10 +305,10 @@ const TestResultsPage = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Left Column - Patient & Test Info */}
           <div className="lg:col-span-1 space-y-6">
-            
+
                          {/* Diagnosis Card Component */}
              <DiagnosisCard result={testResult} images={images} />
              

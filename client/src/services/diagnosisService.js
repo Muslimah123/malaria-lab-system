@@ -15,10 +15,10 @@ const diagnosisService = {
   sendToHospitalEMR: (testId, data = {}) => apiService.diagnosis.sendToHospitalEMR(testId, data),
   batchExport: (testIds, format = 'pdf', includeImages = false) => apiService.diagnosis.batchExport(testIds, format, includeImages),
   addQualityFeedback: (testId, feedback) => apiService.diagnosis.addQualityFeedback(testId, feedback),
-  
+
   // ✅ BASIC: Image detection details (no enhanced features)
   getImageDetectionDetails: (resultId, imageId) => apiService.diagnosis.getImageDetectionDetails(resultId, imageId),
-  
+
   // ✅ BASIC: Performance analytics (no enhanced features)
   getPerformanceAnalytics: (params = {}) => apiService.diagnosis.getPerformanceAnalytics(params)
 };

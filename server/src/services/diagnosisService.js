@@ -66,6 +66,178 @@ class DiagnosisService {
   }
 
   /**
+   * Analyze blood sample images with real-time progress streaming
+   * Falls back to standard endpoint if streaming fails
+   * @param {string[]} imagePaths - Array of image file paths
+   * @param {Function} onProgress - Callback for progress updates (completed, total, imageResult)
+   * @returns {Object} - Diagnosis result from Flask API
+   */
+  async analyzeSampleWithProgress(imagePaths, onProgress) {
+    try {
+      logger.info(`Starting streaming diagnosis analysis for ${imagePaths.length} images`);
+
+      // Validate input
+      if (!imagePaths || imagePaths.length === 0) {
+        throw new AppError('No images provided for analysis', 400);
+      }
+
+      // Validate image files exist
+      await this.validateImageFiles(imagePaths);
+
+      // Check Flask API health first
+      await this.checkFlaskApiHealth();
+
+      try {
+        // Try streaming endpoint first for real-time progress
+        const result = await this.analyzeWithStreaming(imagePaths, onProgress);
+        logger.info(`Streaming diagnosis completed - Status: ${result.status}`);
+        return result;
+      } catch (streamError) {
+        // Fallback to standard endpoint if streaming fails
+        logger.warn(`Streaming failed, falling back to standard endpoint: ${streamError.message}`);
+
+        // Send a progress update that we're falling back
+        if (onProgress) {
+          onProgress({
+            completed: 0,
+            total: imagePaths.length,
+            percentage: 0,
+            currentImage: 'Switching to standard processing...',
+            imageResult: null
+          });
+        }
+
+        // Use standard non-streaming endpoint
+        const response = await this.analyzeWithPaths(imagePaths);
+        const processedResult = await this.processFlaskResponse(response.data);
+
+        logger.info(`Standard diagnosis completed - Status: ${processedResult.status}`);
+        return processedResult;
+      }
+
+    } catch (error) {
+      logger.error('Diagnosis analysis failed:', error);
+
+      if (error instanceof AppError) {
+        throw error;
+      }
+
+      throw new AppError(`Diagnosis failed: ${error.message}`, 500);
+    }
+  }
+
+  /**
+   * Analyze using streaming endpoint for real-time progress
+   */
+  async analyzeWithStreaming(imagePaths, onProgress) {
+    return new Promise((resolve, reject) => {
+      const requestData = {
+        image_paths: imagePaths,
+        metadata: {
+          timestamp: new Date().toISOString(),
+          source: 'malaria-lab-system',
+          analysis_type: 'malaria_detection'
+        }
+      };
+
+      logger.info('Starting SSE streaming analysis...');
+
+      // Use fetch for SSE streaming (axios doesn't handle SSE well)
+      const http = require('http');
+      const url = new URL(`${this.flaskApiUrl}/diagnose/stream`);
+
+      const options = {
+        hostname: url.hostname,
+        port: url.port || 5000,
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'X-API-Version': '1.0'
+        },
+        timeout: this.apiTimeout
+      };
+
+      const req = http.request(options, (res) => {
+        let buffer = '';
+        let finalResult = null;
+
+        res.on('data', (chunk) => {
+          buffer += chunk.toString();
+
+          // Process complete SSE events
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop() || ''; // Keep incomplete data in buffer
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.substring(6));
+
+                if (data.type === 'progress') {
+                  // Emit progress update
+                  logger.debug(`Progress: ${data.completed}/${data.total} - ${data.currentImage}`);
+                  if (onProgress) {
+                    onProgress({
+                      completed: data.completed,
+                      total: data.total,
+                      percentage: data.percentage,
+                      currentImage: data.currentImage,
+                      imageResult: data.imageResult
+                    });
+                  }
+                } else if (data.type === 'complete') {
+                  // Final result
+                  finalResult = data.result;
+                  logger.info('Streaming analysis completed successfully');
+                } else if (data.type === 'error') {
+                  logger.error('Streaming analysis error:', data.error);
+                  reject(new AppError(data.error, 500));
+                } else if (data.type === 'keepalive') {
+                  logger.debug('SSE keepalive received');
+                }
+              } catch (parseError) {
+                logger.warn('Failed to parse SSE event:', parseError);
+              }
+            }
+          }
+        });
+
+        res.on('end', () => {
+          if (finalResult) {
+            // Process the final result through our standard processing
+            this.processFlaskResponse(finalResult)
+              .then(resolve)
+              .catch(reject);
+          } else {
+            reject(new AppError('Streaming ended without result', 500));
+          }
+        });
+
+        res.on('error', (err) => {
+          logger.error('SSE response error:', err);
+          reject(new AppError(`SSE error: ${err.message}`, 500));
+        });
+      });
+
+      req.on('error', (err) => {
+        logger.error('SSE request error:', err);
+        reject(new AppError(`Request failed: ${err.message}`, 503));
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new AppError('Streaming request timeout', 504));
+      });
+
+      // Send request body
+      req.write(JSON.stringify(requestData));
+      req.end();
+    });
+  }
+
+  /**
    * ✅ FIXED: Analyze using shared volume (send paths to Flask)
    */
   async analyzeWithPaths(imagePaths) {
@@ -300,40 +472,50 @@ class DiagnosisService {
       logger.info('Processing Flask API response...');
       logger.debug('Raw Flask response keys:', Object.keys(responseData));
 
+      // Debug: Log timing data from Flask
+      logger.info(`Flask timing data: ${JSON.stringify(responseData.timing)}`);
+      logger.info(`Flask modelType: ${responseData.modelType}`);
+
       // ✅ FIXED: Validate response structure for Python output format
       this.validateFlaskResponse(responseData);
 
-      // ✅ FIXED: Python already returns the correct format - just pass it through with minimal processing
+      // Python already returns the correct format - just pass it through with minimal processing
       const processedResult = {
-        // ✅ FIXED: No status mapping - Python returns 'POSITIVE'/'NEGATIVE' which schema expects
+        // No status mapping - Python returns 'POSITIVE'/'NEGATIVE' which schema expects
         status: responseData.status, // 'POSITIVE' or 'NEGATIVE'
-        
-        // ✅ FIXED: Use camelCase field names that Python returns
+
+        // Model type from Flask
+        modelType: responseData.modelType || 'ONNX',
+
+        // Use camelCase field names that Python returns
         mostProbableParasite: responseData.mostProbableParasite || null,
         parasiteWbcRatio: responseData.parasiteWbcRatio || 0,
-        
-        // ✅ FIXED: Pass through detections array as-is (Python already returns correct format)
+
+        // Pass through detections array as-is (Python already returns correct format)
         detections: this.processDetections(responseData.detections || []),
-        
-        // ✅ FIXED: Include fields that Python returns but original service missed
+
+        // Include fields that Python returns
         totalParasites: responseData.totalParasites || 0,
         totalWbcs: responseData.totalWbcs || 0,
         totalImagesAttempted: responseData.totalImagesAttempted || 0,
-        
-        // ✅ FIXED: Include analysis summary that Python returns
+
+        // Timing statistics from Flask
+        timing: responseData.timing || null,
+
+        // Include analysis summary that Python returns
         analysisSummary: responseData.analysisSummary || {
           parasiteTypesDetected: [],
           avgWbcConfidence: 0,
           totalWbcDetections: 0,
           imagesProcessed: 0
         },
-        
-        // ✅ ENHANCED: Add processing metadata
+
+        // Add processing metadata
         processingMetadata: {
           timestamp: new Date().toISOString(),
           apiVersion: '1.0',
-          modelVersion: 'V12.pt',
-          processingTime: Date.now() // Could be enhanced to measure actual time
+          modelVersion: responseData.modelType || 'ONNX',
+          processingTime: Date.now()
         }
       };
 
@@ -584,7 +766,7 @@ class DiagnosisService {
   async testApiConnection() {
     try {
       logger.info('Testing Flask API connection...');
-      
+
       const healthStatus = await this.healthCheck();
       const apiInfo = await this.getApiInfo();
 
@@ -602,6 +784,7 @@ class DiagnosisService {
       };
     }
   }
+
 }
 
 module.exports = new DiagnosisService();

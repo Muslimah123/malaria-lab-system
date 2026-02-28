@@ -351,6 +351,33 @@ router.get('/system/health',
 
 /**
  * @swagger
+ * /api/diagnosis/status/{sessionId}:
+ *   get:
+ *     summary: Get processing status for an upload session (fallback for WebSocket)
+ *     tags: [Diagnosis]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Upload session ID
+ *     responses:
+ *       200:
+ *         description: Processing status retrieved successfully
+ *       404:
+ *         description: Session not found
+ */
+router.get('/status/:sessionId',
+  param('sessionId').notEmpty().withMessage('Session ID is required'),
+  validateRequest,
+  diagnosisController.getProcessingStatus
+);
+
+/**
+ * @swagger
  * /api/diagnosis/batch-export:
  *   post:
  *     summary: Export multiple diagnosis results (Supervisor/Admin only)
