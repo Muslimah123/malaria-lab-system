@@ -22,6 +22,7 @@ import PatientManagementPage from './pages/PatientManagementPage';
 import UserManagementPage from './pages/UserManagementPage';
 import SettingsPage from './pages/SettingsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import WorklistPage from './pages/WorklistPage';
 
 
 // Protected Route Component
@@ -140,7 +141,15 @@ function AppContent() {
             <ProtectedRoute>
               <AnalyticsPage />
               </ProtectedRoute>
+          }
+          />
 
+          <Route
+          path="/worklist"
+          element={
+            <ProtectedRoute>
+              <WorklistPage />
+            </ProtectedRoute>
           }
           />
           

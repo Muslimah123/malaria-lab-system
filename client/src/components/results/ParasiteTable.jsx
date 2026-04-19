@@ -1,7 +1,7 @@
 
 // src/components/results/ParasiteTable.jsx
 import React from 'react';
-import { Camera, TrendingUp, Activity, AlertCircle, Target, Brain, Microscope, Sparkles } from 'lucide-react';
+import { Camera, TrendingUp, Activity, AlertCircle, CheckCircle, Target, Brain, Microscope, Sparkles } from 'lucide-react';
 import SeverityBadge from './SeverityBadge';
 
 const ParasiteTable = ({ detections = [], showImageColumn = true, showIndividualRows = true }) => {
@@ -126,6 +126,7 @@ const ParasiteTable = ({ detections = [], showImageColumn = true, showIndividual
                     <th className="text-left py-4 px-6 text-blue-200 font-bold text-sm">P/WBC Ratio</th>
                     <th className="text-left py-4 px-6 text-blue-200 font-bold text-sm">Dominant Type</th>
                     <th className="text-left py-4 px-6 text-blue-200 font-bold text-sm">Density Assessment</th>
+                    <th className="text-left py-4 px-6 text-blue-200 font-bold text-sm">Sample Quality</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -136,9 +137,10 @@ const ParasiteTable = ({ detections = [], showImageColumn = true, showIndividual
                     const dominantParasite = detection.parasitesDetected?.[0];
                     const ratioSeverity = getRatioSeverity(ratio);
                     const interpretation = getRatioInterpretation(ratio);
+                    const imageWarning = detection.warning || null;
 
                     return (
-                      <tr key={detection.imageId || index} className="border-b border-white/10 hover:bg-gradient-to-r hover:from-white/5 hover:to-white/10 transition-all duration-300 group">
+                      <tr key={detection.imageId || index} className={`border-b border-white/10 hover:bg-gradient-to-r hover:from-white/5 hover:to-white/10 transition-all duration-300 group ${imageWarning ? 'bg-amber-500/5' : ''}`}>
                         {showImageColumn && (
                           <td className="py-5 px-6">
                             <div className="flex items-center space-x-4">
@@ -227,6 +229,20 @@ const ParasiteTable = ({ detections = [], showImageColumn = true, showIndividual
                               {interpretation.text}
                             </span>
                           </div>
+                        </td>
+
+                        <td className="py-5 px-6">
+                          {imageWarning ? (
+                            <div className="flex items-start space-x-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2 max-w-xs">
+                              <AlertCircle className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+                              <span className="text-amber-200 text-xs leading-tight">{imageWarning}</span>
+                            </div>
+                          ) : (
+                            <span className="text-green-400 text-xs font-medium flex items-center space-x-1">
+                              <CheckCircle className="w-4 h-4" />
+                              <span>OK</span>
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );

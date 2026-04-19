@@ -937,6 +937,11 @@ class ApiService {
         responseType: 'blob'
       });
       return response.data;
+    },
+
+    getTAT: async (params = {}) => {
+      const response = await api.get('/api/analytics/tat', { params });
+      return response.data;
     }
   };
 

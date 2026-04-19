@@ -22,7 +22,14 @@ class SocketService {
     // Initialize Socket.IO with authentication
     const io = new Server(server, {
       cors: {
-        origin: process.env.CLIENT_URL || "http://localhost:3000",
+        origin: [
+          process.env.CLIENT_URL || "http://localhost:3000",
+          "http://localhost:3000",
+          "http://localhost:3001",
+          "http://localhost:3002",
+          "http://127.0.0.1:3001",
+          "http://127.0.0.1:3002",
+        ],
         methods: ["GET", "POST"],
         credentials: true
       },
@@ -432,7 +439,8 @@ class SocketService {
    * Check connection rate limit
    */
   checkConnectionRateLimit(userId, timestamp) {
-    // Simple rate limiting - max 5 connections per minute per user
+    // Rate limiting - max 20 connections per minute per user
+    // (5 was too low; normal page navigation + reconnects easily exceed it)
     if (!this.connectionAttempts) {
       this.connectionAttempts = new Map();
     }
@@ -440,7 +448,7 @@ class SocketService {
     const attempts = this.connectionAttempts.get(userId) || [];
     const recentAttempts = attempts.filter(time => timestamp - time < 60000);
 
-    if (recentAttempts.length >= 5) {
+    if (recentAttempts.length >= 20) {
       return false;
     }
 

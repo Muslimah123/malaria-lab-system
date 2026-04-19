@@ -1064,6 +1064,71 @@ class AnalyticsController {
   }
 
   /**
+   * GET /api/analytics/tat — Turnaround time stats
+   */
+  async getTATStats(req, res, next) {
+    try {
+      const { startDate, endDate } = req.query;
+      const dateFilter = {};
+      if (startDate) dateFilter.$gte = new Date(startDate);
+      if (endDate)   dateFilter.$lte = new Date(endDate);
+
+      const query = { status: 'completed', processedAt: { $exists: true } };
+      if (Object.keys(dateFilter).length) query.createdAt = dateFilter;
+
+      // SLA thresholds in minutes
+      const SLA = { urgent: 60, high: 120, normal: 240, low: 480 };
+
+      const completedTests = await Test.find(query)
+        .select('createdAt processedAt priority')
+        .lean();
+
+      if (!completedTests.length) {
+        return res.json({ success: true, data: { avgTAT: 0, byPriority: {}, slaBreaches: 0, totalCompleted: 0 } });
+      }
+
+      const byPriority = { urgent: [], high: [], normal: [], low: [] };
+      let slaBreaches = 0;
+
+      completedTests.forEach(t => {
+        const tat = (new Date(t.processedAt) - new Date(t.createdAt)) / 60000; // minutes
+        const prio = t.priority || 'normal';
+        if (byPriority[prio]) byPriority[prio].push(tat);
+        if (tat > (SLA[prio] || SLA.normal)) slaBreaches++;
+      });
+
+      const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+
+      const allTATs = completedTests.map(t => (new Date(t.processedAt) - new Date(t.createdAt)) / 60000);
+      const avgTAT = avg(allTATs);
+
+      const priorityStats = {};
+      Object.entries(byPriority).forEach(([prio, tats]) => {
+        priorityStats[prio] = {
+          avg: avg(tats),
+          count: tats.length,
+          slaMinutes: SLA[prio],
+          breaches: tats.filter(t => t > SLA[prio]).length
+        };
+      });
+
+      res.json({
+        success: true,
+        data: {
+          avgTAT,
+          totalCompleted: completedTests.length,
+          slaBreaches,
+          slaBreachRate: Math.round((slaBreaches / completedTests.length) * 100),
+          byPriority: priorityStats
+        }
+      });
+    } catch (error) {
+      logger.error('TAT stats error:', error);
+      next(new AppError('Failed to get TAT statistics', 500));
+    }
+  }
+
+  /**
    * Get human-readable parasite name
    */
   getParasiteName(type) {

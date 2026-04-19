@@ -1,4 +1,5 @@
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -9,3 +10,23 @@ build/
 dist/
 *.log
 .venv/
+
+# Test data — not needed in the container (22 MB of images)
+test/
+notebooks/
+*.ipynb
+
+# Runtime directories — created at startup, not baked in
+uploads/
+logs/
+
+# Documentation and scratch files
+*.md
+output.txt
+ps.txt
+COMPREHENSIVE_ANALYSIS_REPORT.md
+PERFORMANCE_COMPARISON_CHART.md
+
+# Git
+.git/
+.gitignore

@@ -49,6 +49,45 @@ class MalariaAnalyzer:
 
             timing = result.get("timing", {})
 
+            # Post-inference plausibility checks.
+            # A genuine Giemsa-stained smear should contain multiple WBCs with
+            # confident detections; random images may produce a handful of
+            # low-confidence WBC false-positives.
+            no_detections_warning = None
+            wbc_detections = result.get("wbcsDetected", [])
+
+            if result["parasiteCount"] == 0 and result["whiteBloodCellsDetected"] == 0:
+                no_detections_warning = (
+                    "No WBCs or parasites detected in this image. "
+                    "Verify that it is a properly stained blood smear slide."
+                )
+                logger.warning(f"Zero detections for {image_id}: {no_detections_warning}")
+
+            elif result["parasiteCount"] > 0 and result["whiteBloodCellsDetected"] == 0:
+                # Parasites detected but zero WBCs — medically impossible in a
+                # real blood smear.  WBCs are always present on a prepared slide;
+                # their absence strongly indicates the image is not a blood smear.
+                no_detections_warning = (
+                    f"{result['parasiteCount']} parasite(s) detected but no WBCs found. "
+                    "WBCs must always be present in a valid blood smear. "
+                    "This image is very likely not a blood smear slide — "
+                    "results should not be used clinically."
+                )
+                logger.warning(f"Parasites without WBCs for {image_id}: {no_detections_warning}")
+
+            elif result["whiteBloodCellsDetected"] > 0 and result["parasiteCount"] == 0 and wbc_detections:
+                avg_wbc_conf = sum(w["confidence"] for w in wbc_detections) / len(wbc_detections)
+                few_wbcs = result["whiteBloodCellsDetected"] < 3
+                low_confidence = avg_wbc_conf < 0.50
+
+                if few_wbcs and low_confidence:
+                    no_detections_warning = (
+                        f"Only {result['whiteBloodCellsDetected']} WBC(s) detected with low average "
+                        f"confidence ({avg_wbc_conf:.0%}). This image may not be a valid blood smear. "
+                        "Please verify the slide preparation and staining."
+                    )
+                    logger.warning(f"Suspicious WBC detections for {image_id}: {no_detections_warning}")
+
             detection_data = {
                 "success": True,
                 "idx": idx,
@@ -61,6 +100,7 @@ class MalariaAnalyzer:
                 "parasiteWbcRatio": result["parasiteWbcRatio"],
                 "annotatedImagePath": result.get("annotatedImagePath"),
                 "timing": timing,
+                "warning": no_detections_warning,
                 "metadata": {
                     "totalDetections": len(result["parasitesDetected"]) + result["whiteBloodCellsDetected"],
                     "detectionRate": 1.0,
@@ -155,6 +195,7 @@ class MalariaAnalyzer:
         Aggregate individual image results into a comprehensive report.
         """
         detections = []
+        invalid_samples = []
         total_parasite_count = 0
         total_wbc_count = 0
 
@@ -170,6 +211,11 @@ class MalariaAnalyzer:
 
         for result in results:
             if not result.get("success", False):
+                if result.get("invalidSample"):
+                    invalid_samples.append({
+                        "imageId": result.get("imageId", result.get("image_path", "unknown")),
+                        "reason": result.get("validationReason", "Unknown validation failure")
+                    })
                 continue
 
             # Add to detections
@@ -182,6 +228,7 @@ class MalariaAnalyzer:
                 "parasiteCount": result["parasiteCount"],
                 "parasiteWbcRatio": result["parasiteWbcRatio"],
                 "annotatedImagePath": result.get("annotatedImagePath"),
+                "warning": result.get("warning"),
                 "timing": result.get("timing", {}),
                 "metadata": result.get("metadata", {})
             }
@@ -210,7 +257,17 @@ class MalariaAnalyzer:
                     all_wbc_confidences.append(wbc["confidence"])
 
         # Determine status and most probable parasite
-        patient_status = "POSITIVE" if total_parasite_count > 0 else "NEGATIVE"
+        if len(invalid_samples) == total_images:
+            patient_status = "INVALID_SAMPLE"
+        elif total_parasite_count > 0 and total_wbc_count == 0:
+            # Parasites found but zero WBCs across ALL images — medically
+            # impossible on a real slide. Override to SUSPICIOUS rather than
+            # POSITIVE to prevent a false clinical alarm.
+            patient_status = "SUSPICIOUS"
+        elif total_parasite_count > 0:
+            patient_status = "POSITIVE"
+        else:
+            patient_status = "NEGATIVE"
 
         most_probable_parasite = None
         if all_parasite_confidences:
@@ -238,6 +295,122 @@ class MalariaAnalyzer:
                 }
 
         parasite_wbc_ratio = total_parasite_count / total_wbc_count if total_wbc_count > 0 else 0.0
+
+        # ── WHO thick blood film parasitaemia (MM-SOP-09, Section 4.1) ────────
+        #
+        # Formula (thick film only):
+        #   Parasite density (parasites/µL) = (parasites / WBCs) × 8,000
+        #
+        # Thin film uses a different formula (parasitised RBCs × 5,000,000 /
+        # total RBCs) which cannot be applied here — this system does not
+        # detect RBCs.
+        #
+        # Zero parasites → NEGATIVE result; quantification is skipped entirely.
+        # Calculating 0 / WBCs × 8,000 = 0 p/µL and labelling it "low parasitaemia"
+        # would be clinically misleading.
+        #
+        # For positive cases, WHO counting thresholds are applied retrospectively:
+        #   Valid HIGH:  WBCs ≥ 200 AND parasites ≥ 100  → stop at 200 WBCs
+        #   Valid LOW:   WBCs ≥ 500 AND parasites ≤  99  → stop at 500 WBCs
+        #   P1  — parasites ≥ 100 but WBCs < 200
+        #   P2  — parasites ≥ 1, ≤ 99 but WBCs ≥ 200 and < 500
+        #   P1+P2 — parasites ≥ 1, ≤ 99 and WBCs < 200 (both thresholds unmet)
+        #   P3  — parasites > 0 but WBCs = 0 (cannot calculate)
+        # ────────────────────────────────────────────────────────────────────
+        WHO_ASSUMED_WBC_PER_UL = 8000
+
+        if total_parasite_count == 0:
+            # NEGATIVE — no parasites detected; parasitaemia is not applicable
+            parasite_density_per_ul = 0.0
+            density_is_preliminary  = False
+            density_flag            = None
+            density_note            = None
+
+        elif total_wbc_count == 0:
+            # P3 — parasites found but no WBCs; denominator is zero
+            parasite_density_per_ul = 0.0
+            density_is_preliminary  = True
+            density_flag            = "P3"
+            density_note            = (
+                f"Parasitaemia cannot be calculated: no white blood cells (WBCs) were detected "
+                f"in this sample. A valid blood smear should contain WBCs alongside parasites. "
+                f"Please check the sample quality and consider repeat testing. "
+                f"({total_parasite_count} parasite(s) detected, 0 WBCs counted.)"
+            )
+
+        elif total_wbc_count >= 200 and total_parasite_count >= 100:
+            # WHO valid — high parasitaemia (early exit at 200 WBCs)
+            parasite_density_per_ul = round(
+                (total_parasite_count / total_wbc_count) * WHO_ASSUMED_WBC_PER_UL, 2
+            )
+            density_is_preliminary  = False
+            density_flag            = None
+            density_note            = None
+
+        elif total_wbc_count >= 500:
+            # WHO valid — low parasitaemia (full exit at 500 WBCs)
+            parasite_density_per_ul = round(
+                (total_parasite_count / total_wbc_count) * WHO_ASSUMED_WBC_PER_UL, 2
+            )
+            density_is_preliminary  = False
+            density_flag            = None
+            density_note            = None
+
+        elif total_parasite_count >= 100:
+            # P1 — ≥100 parasites but batch ended before reaching 200 WBCs
+            parasite_density_per_ul = round(
+                (total_parasite_count / total_wbc_count) * WHO_ASSUMED_WBC_PER_UL, 2
+            )
+            density_is_preliminary  = True
+            density_flag            = "P1"
+            density_note            = (
+                f"Preliminary estimate: For high-density infections (100 or more parasites detected), "
+                f"WHO guidelines require at least 200 white blood cells (WBCs) to be counted. "
+                f"Only {total_wbc_count} WBC(s) were detected in this sample. "
+                f"The parasitaemia value of {parasite_density_per_ul:,.0f} p/uL is an estimate and should be interpreted with caution."
+            )
+
+        elif total_wbc_count >= 200:
+            # P2 — passed the 200 WBC checkpoint, parasites < 100,
+            # counting should have continued to 500 WBCs but batch ended early
+            parasite_density_per_ul = round(
+                (total_parasite_count / total_wbc_count) * WHO_ASSUMED_WBC_PER_UL, 2
+            )
+            density_is_preliminary  = True
+            density_flag            = "P2"
+            density_note            = (
+                f"Preliminary estimate: For low-density infections (fewer than 100 parasites detected), "
+                f"WHO guidelines require at least 500 white blood cells (WBCs) to be counted. "
+                f"Only {total_wbc_count} WBCs were counted in this sample. "
+                f"The parasitaemia value of {parasite_density_per_ul:,.0f} p/uL is an estimate and should be interpreted with caution."
+            )
+
+        else:
+            # P1+P2 — WBCs < 200 AND parasites ≤ 99: both thresholds unmet simultaneously
+            parasite_density_per_ul = round(
+                (total_parasite_count / total_wbc_count) * WHO_ASSUMED_WBC_PER_UL, 2
+            )
+            density_is_preliminary  = True
+            density_flag            = "P1+P2"
+            density_note            = (
+                f"Preliminary estimate: WHO guidelines require at least 200 WBCs for high-density infections "
+                f"(100 or more parasites) or 500 WBCs for low-density infections (fewer than 100 parasites). "
+                f"Only {total_wbc_count} WBC(s) were detected in this sample. "
+                f"The parasitaemia value of {parasite_density_per_ul:,.0f} p/uL is an estimate and should be interpreted with caution."
+            )
+
+        if density_is_preliminary:
+            logger.warning(
+                "Parasite density flag %s: %s (parasites=%d, WBCs=%d)",
+                density_flag, density_note, total_parasite_count, total_wbc_count
+            )
+        else:
+            logger.info(
+                "Parasite density WHO-valid: %.2f parasites/µL "
+                "(parasites=%d, WBCs=%d)",
+                parasite_density_per_ul, total_parasite_count, total_wbc_count
+            )
+
         num_images = len(detections)
 
         # Build final report
@@ -246,7 +419,13 @@ class MalariaAnalyzer:
             "modelType": self.model_type,
             "mostProbableParasite": most_probable_parasite,
             "parasiteWbcRatio": parasite_wbc_ratio,
+            "parasiteDensityPerUl": parasite_density_per_ul,
+            "parasiteDensityIsPreliminary": density_is_preliminary,
+            "parasiteDensityFlag": density_flag,
+            "parasiteDensityNote": density_note,
             "detections": detections,
+            "invalidSamples": invalid_samples,
+            "totalInvalidSamples": len(invalid_samples),
             "totalImagesAttempted": total_images,
             "totalParasites": total_parasite_count,
             "totalWbcs": total_wbc_count,

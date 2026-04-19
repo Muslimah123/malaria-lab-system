@@ -1,587 +1,494 @@
-// export default TestResultsPage;
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Download,
-  Printer,
-  ArrowLeft,
-  User,
-  TestTube,
-  Calendar,
-  Clock,
-  FileText,
-  AlertTriangle,
-  RefreshCw,
-  XCircle,
-  Activity,
-  Target,
-  Shield
+  Download, Printer, ArrowLeft, User, TestTube, Calendar,
+  RefreshCw, XCircle, Activity, AlertTriangle, Percent,
+  CheckCircle, Microscope, Droplets, ImageIcon, TrendingUp,
+  Zap, Brain, ShieldCheck
 } from 'lucide-react';
 
-// Components
-import DiagnosisCard from '../components/results/DiagnosisCard';
 import ImageAnnotation from '../components/results/ImageAnnotation';
-import SeverityBadge from '../components/results/SeverityBadge';
-
+import ConfirmationPanel from '../components/results/ConfirmationPanel';
+import TreatmentPanel from '../components/results/TreatmentPanel';
 import { PageLoader } from '../components/common/LoadingSpinner';
-
-// Services and utilities
 import diagnosisService from '../services/diagnosisService';
 
+// ── helpers ──────────────────────────────────────────────────────────────────
+const PARASITE_NAMES = {
+  PF: 'Plasmodium Falciparum',
+  PM: 'Plasmodium Malariae',
+  PO: 'Plasmodium Ovale',
+  PV: 'Plasmodium Vivax',
+};
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+const fmtTime = (d) => d ? new Date(d).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
+
+// ── sub-components ────────────────────────────────────────────────────────────
+
+function StatCard({ icon: Icon, label, value, color = 'blue', sub }) {
+  const colors = {
+    rose:   'bg-rose-500/10 border-rose-500/20 text-rose-300',
+    blue:   'bg-blue-500/10 border-blue-500/20 text-blue-300',
+    purple: 'bg-purple-500/10 border-purple-500/20 text-purple-300',
+    amber:  'bg-amber-500/10 border-amber-500/20 text-amber-300',
+    green:  'bg-green-500/10 border-green-500/20 text-green-300',
+  };
+  return (
+    <div className={`rounded-xl border p-4 ${colors[color]}`}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium opacity-70 uppercase tracking-wide">{label}</span>
+        <Icon className="w-4 h-4 opacity-60" />
+      </div>
+      <div className="text-2xl font-bold text-white">{value}</div>
+      {sub && <div className="text-xs opacity-60 mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+function InfoRow({ label, value, mono }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+      <span className="text-sm text-blue-300/70">{label}</span>
+      <span className={`text-sm text-white font-medium ${mono ? 'font-mono bg-white/10 px-2 py-0.5 rounded text-xs' : ''}`}>
+        {value || 'N/A'}
+      </span>
+    </div>
+  );
+}
+
+// ── page ──────────────────────────────────────────────────────────────────────
 const TestResultsPage = () => {
-  // Extract testId from URL params using React Router
   const { testId } = useParams();
   const navigate = useNavigate();
 
-  // State management
   const [testResult, setTestResult] = useState(null);
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [dataFound, setDataFound] = useState(true);
 
-  // Fetch test result data on component mount
   useEffect(() => {
-    const fetchTestData = async () => {
-      if (!testId) {
-        setError('Test ID is required');
-        setLoading(false);
-        return;
-      }
-
+    const load = async () => {
+      if (!testId) { setError('Test ID is required'); setLoading(false); return; }
       try {
         setLoading(true);
-        setError(null);
+        const res = await diagnosisService.getByTestId(testId);
+        if (!res.success || !res.data?.result) { setDataFound(false); setLoading(false); return; }
 
-        // Fetch diagnosis result
-        console.log('Fetching diagnosis for testId:', testId);
-        const diagnosisResponse = await diagnosisService.getByTestId(testId);
-        
-        console.log('Diagnosis response:', diagnosisResponse);
-        
-        if (!diagnosisResponse.success || !diagnosisResponse.data?.result) {
-          setDataFound(false);
-          setLoading(false);
-          return;
+        const r = res.data.result;
+        // normalise confidence to 0-100
+        if (r.mostProbableParasite?.confidence !== undefined) {
+          r.confidence = r.mostProbableParasite.confidence > 1
+            ? r.mostProbableParasite.confidence
+            : r.mostProbableParasite.confidence * 100;
+          if (r.mostProbableParasite.confidence <= 1)
+            r.mostProbableParasite.confidence = r.mostProbableParasite.confidence * 100;
+        } else if (r.confidence !== undefined && r.confidence <= 1) {
+          r.confidence = r.confidence * 100;
         }
+        setTestResult(r);
 
-        const result = diagnosisResponse.data.result;
-        
-  
-        if (result.mostProbableParasite?.confidence !== undefined) {
-  // Use mostProbableParasite confidence as the primary confidence
-  result.confidence = result.mostProbableParasite.confidence > 1 
-    ? result.mostProbableParasite.confidence 
-    : result.mostProbableParasite.confidence * 100;
-} else if (result.confidence !== undefined && result.confidence <= 1) {
-  // Fallback to regular confidence if no parasite confidence
-  result.confidence = result.confidence * 100;
-}
-        
-        // Ensure mostProbableParasite confidence is also normalized
-        if (result.mostProbableParasite?.confidence !== undefined && result.mostProbableParasite.confidence <= 1) {
-          result.mostProbableParasite.confidence = result.mostProbableParasite.confidence * 100;
-        }
-        
-        setTestResult(result);
-
-        // Fetch images with annotations
         try {
-          console.log('Fetching images for testId:', testId);
-          const imagesResponse = await diagnosisService.getImages(testId);
-          console.log('Images response:', imagesResponse);
-          
-          if (imagesResponse.success && imagesResponse.data?.images) {
-            console.log('First image annotations:', imagesResponse.data.images[0]?.annotations);
-            console.log('First image data:', imagesResponse.data.images[0]);
-            console.log('Images array length:', imagesResponse.data.images.length);
-            setImages(imagesResponse.data.images);
-          }
-        } catch (imageError) {
-          console.warn('Failed to fetch images:', imageError);
-          // Images are optional, don't fail the whole page
-          setImages([]);
-        }
+          const imgRes = await diagnosisService.getImages(testId);
+          if (imgRes.success && imgRes.data?.images) setImages(imgRes.data.images);
+        } catch { setImages([]); }
 
-      } catch (err) {
-        console.error('Failed to fetch test result:', err);
-        setError(err.message || 'Failed to load test result');
+      } catch (e) {
+        setError(e.message || 'Failed to load test result');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchTestData();
+    load();
   }, [testId]);
 
-  // Export PDF report
-  const handleExportPDF = async () => {
-    try {
-      setExporting(true);
-      const pdfBlob = await diagnosisService.exportReport(testId, 'pdf');
-      
-      // Create download link
-      const url = window.URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `malaria-test-${testId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      console.log('Report exported successfully');
-    } catch (error) {
-      console.error('Export failed:', error);
-      alert('Failed to export report. Please try again.');
-    } finally {
-      setExporting(false);
+  const handleConfirmed = (rev) => {
+    setTestResult(prev => ({
+      ...prev,
+      manualReview: {
+        isReviewed:          true,
+        signedByName:        rev.reviewedBy,
+        reviewedAt:          rev.reviewedAt,
+        verificationCode:    rev.verificationCode,
+        reviewNotes:         rev.reviewNotes,
+        reviewerConfidence:  rev.reviewerConfidence,
+        overriddenStatus:    rev.finalStatus !== prev.status ? rev.finalStatus : undefined,
+        detectionsEdited:    rev.detectionsEdited,
+        parasiteCountReviewed:               rev.parasiteCountReviewed,
+        wbcCountReviewed:                    rev.wbcCountReviewed,
+        parasiteWbcRatioReviewed:            rev.parasiteWbcRatioReviewed,
+        parasiteDensityPerUlReviewed:        rev.parasiteDensityPerUlReviewed,
+        parasiteDensityIsPreliminaryReviewed: rev.parasiteDensityIsPreliminaryReviewed,
+        parasiteDensityFlagReviewed:         rev.parasiteDensityFlagReviewed,
+        parasiteDensityNoteReviewed:         rev.parasiteDensityNoteReviewed,
+      }
+    }));
+
+    // Attach reviewed image URLs alongside the original AI-annotated ones (keep both)
+    if (rev.detectionsEdited && rev.reviewedImages?.length > 0) {
+      setImages(prev => prev.map(img => {
+        const reviewed = rev.reviewedImages.find(r => r.imageId === img.imageId);
+        if (!reviewed) return img;
+        return { ...img, reviewedImageUrl: reviewed.reviewedImageUrl };
+      }));
     }
   };
 
-  // Handle print
-  const handlePrint = () => {
-    window.print();
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const blob = await diagnosisService.exportReport(testId, 'pdf');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `malaria-report-${testId}.pdf`;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch { alert('Export failed. Please try again.'); }
+    finally { setExporting(false); }
   };
 
-  // Handle refresh
-  const handleRefresh = () => {
-    window.location.reload();
-  };
+  // ── loading / error / no-data states ─────────────────────────────────────
+  if (loading) return <PageLoader text="Loading test results..." />;
 
-  // Navigation handlers
-  const handleBackToResults = () => {
-    navigate('/results');
-  };
-
-  // Helper functions
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
-  };
-
-
-  // Loading state
-  if (loading) {
-    return <PageLoader text="Loading test results..." />;
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
-        <div className="text-center bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-8 max-w-md">
-          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-white mb-2">Error Loading Results</h2>
-          <p className="text-blue-200 mb-6">{error}</p>
-          <div className="flex space-x-4 justify-center">
-            <button
-              onClick={handleBackToResults}
-              className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              Back to Results
-            </button>
-            <button
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white rounded-lg transition-colors flex items-center"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Retry
-            </button>
-          </div>
+  if (error) return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
+      <div className="text-center bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-10 max-w-md">
+        <XCircle className="w-14 h-14 text-rose-400 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-white mb-2">Could not load results</h2>
+        <p className="text-blue-200 mb-6 text-sm">{error}</p>
+        <div className="flex gap-3 justify-center">
+          <button onClick={() => navigate('/results')} className="px-5 py-2 bg-white text-blue-700 rounded-lg font-medium hover:bg-blue-50 transition-colors">Back</button>
+          <button onClick={() => window.location.reload()} className="px-5 py-2 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 transition-colors flex items-center gap-2"><RefreshCw className="w-4 h-4" />Retry</button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // No data state - Results not available
-  if (!dataFound || !testResult) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
-        <div className="text-center bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-8 max-w-md">
-          <div className="relative">
-            <TestTube className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-            <Activity className="w-6 h-6 text-yellow-400 absolute -bottom-1 -right-1 animate-pulse" />
-          </div>
-          <h2 className="text-xl font-semibold text-white mb-2">Results Not Available</h2>
-          <p className="text-blue-200 mb-2">
-            Test result for ID <span className="font-mono bg-white/10 px-2 py-1 rounded">{testId}</span> is not ready yet.
-          </p>
-          <p className="text-blue-300 text-sm mb-6">
-            Results typically become available within 10-15 minutes after sample upload.
-          </p>
-          <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 mb-6">
-            <div className="flex items-start">
-              <AlertTriangle className="w-5 h-5 text-blue-400 mr-3 mt-0.5 flex-shrink-0" />
-              <div className="text-left">
-                <p className="text-blue-100 text-sm mb-2">Possible reasons:</p>
-                <ul className="text-blue-200 text-sm space-y-1">
-                  <li>• Analysis is still in progress</li>
-                  <li>• Test has not been processed yet</li>
-                  <li>• Sample images are being analyzed</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div className="flex space-x-4 justify-center">
-            <button
-              onClick={handleBackToResults}
-              className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              Back to Results
-            </button>
-            <button
-              onClick={handleRefresh}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white rounded-lg transition-colors flex items-center"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Check Again
-            </button>
-          </div>
+  if (!dataFound || !testResult) return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center">
+      <div className="text-center bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-10 max-w-md">
+        <div className="relative inline-block mb-4">
+          <TestTube className="w-14 h-14 text-blue-400" />
+          <Activity className="w-5 h-5 text-yellow-400 absolute -bottom-1 -right-1 animate-pulse" />
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">Results Not Ready</h2>
+        <p className="text-blue-200 text-sm mb-6">No result found for <span className="font-mono bg-white/10 px-2 py-0.5 rounded">{testId}</span>. Analysis may still be in progress.</p>
+        <div className="flex gap-3 justify-center">
+          <button onClick={() => navigate('/results')} className="px-5 py-2 bg-white text-blue-700 rounded-lg font-medium hover:bg-blue-50 transition-colors">Back</button>
+          <button onClick={() => window.location.reload()} className="px-5 py-2 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 transition-colors flex items-center gap-2"><RefreshCw className="w-4 h-4" />Refresh</button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // Extract data from API response
-  const patient = testResult.test?.patient;
+  // ── derived state ─────────────────────────────────────────────────────────
+  const patient    = testResult.test?.patient;
   const technician = testResult.test?.technician;
-  
-  // Debug: Log the actual status value
-  console.log('🔍 TestResult status:', testResult.status);
-  console.log('🔍 TestResult data:', testResult);
-  
-  // Check if parasites are actually detected and override status if needed
-  const actualParasiteCount = testResult.totalParasites || images.reduce((sum, img) => sum + (img.annotations?.parasites?.length || 0), 0) || 0;
-  console.log('🔍 Actual parasite count:', actualParasiteCount);
-  
-  // If parasites are detected but status is negative, there's a backend logic error
-  const hasBackendError = actualParasiteCount > 0 && (testResult.status === 'NEG' || testResult.status === 'NEGATIVE');
-  if (hasBackendError) {
-    console.warn('⚠️ Backend logic error: Parasites detected but status is negative');
-  }
-  
-  const isPositive = testResult.status === 'POS' || testResult.status === 'POSITIVE' || actualParasiteCount > 0;
-  const parasiteType = testResult.mostProbableParasite?.type;
-  const severity = testResult.severity?.level;
+  const rev        = testResult.manualReview;
+  const reviewed   = rev?.isReviewed;
 
+  const isInvalid  = testResult.status === 'INVALID_SAMPLE';
+  const isSuspect  = testResult.status === 'SUSPICIOUS';
+  const isPositive = !isInvalid && !isSuspect &&
+                     (testResult.status === 'POSITIVE' || testResult.status === 'POS' || testResult.totalParasites > 0);
+  const isNegative = !isInvalid && !isSuspect && !isPositive;
+
+  const finalSeverity = rev?.overriddenSeverity || testResult.severity?.level;
+  const parasite      = testResult.mostProbableParasite;
+  const confidence    = testResult.confidence || 0;
+
+  const parasiteCount = testResult.totalParasites ?? 0;
+  const wbcCount      = testResult.totalWbcs ?? 0;
+  const imageCount    = testResult.totalImagesAttempted || images.length || 0;
+  const ratio         = testResult.parasiteWbcRatio ?? 0;
+  // WHO MM-SOP-09 parasitaemia in p/µL — computed by the backend pre-save hook.
+  const parasitemia              = testResult.parasitemia ?? 0;
+  const parasitemiaFlag          = testResult.parasitemiaFlag ?? null;
+  const parasitemiaIsPreliminary = testResult.parasitemiaIsPreliminary ?? false;
+  const parasitemiaNote          = testResult.parasitemiaNote ?? null;
+
+  // Status theme
+  const theme = isPositive
+    ? { bg: 'from-rose-600 to-rose-800',     badge: 'bg-rose-500/20 border-rose-400/40 text-rose-200',   icon: XCircle,     label: 'POSITIVE', dot: 'bg-rose-400' }
+    : isNegative
+    ? { bg: 'from-emerald-700 to-teal-800',  badge: 'bg-emerald-500/20 border-emerald-400/40 text-emerald-200', icon: CheckCircle, label: 'NEGATIVE', dot: 'bg-emerald-400' }
+    : isSuspect
+    ? { bg: 'from-orange-600 to-amber-800',  badge: 'bg-orange-500/20 border-orange-400/40 text-orange-200',   icon: AlertTriangle, label: 'SUSPICIOUS', dot: 'bg-orange-400' }
+    : { bg: 'from-amber-600 to-orange-800',  badge: 'bg-amber-500/20 border-amber-400/40 text-amber-200',      icon: AlertTriangle, label: 'INVALID', dot: 'bg-amber-400' };
+
+  const StatusIcon = theme.icon;
+
+  // ── render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
-      {/* Action Bar */}
-      <div className="bg-white/10 backdrop-blur-md border-b border-white/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <button 
-              onClick={handleBackToResults}
-              className="flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white rounded-lg transition-colors"
+
+      {/* ── Top action bar ─────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-20 bg-white/10 backdrop-blur-md border-b border-white/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <button
+            onClick={() => navigate('/results')}
+            className="flex items-center gap-2 text-sm text-blue-300 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />Back to Results
+          </button>
+
+          <span className="font-mono text-xs text-white/40 hidden sm:block">{testId}</span>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-2 px-4 py-1.5 bg-white text-slate-800 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Results
+              <Download className="w-3.5 h-3.5" />
+              {exporting ? 'Exporting…' : 'Export PDF'}
             </button>
-            
-            <div className="flex space-x-3">
-              <button
-                onClick={handleExportPDF}
-                disabled={exporting}
-                className="flex items-center px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all hover:scale-105 font-medium disabled:opacity-50"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                {exporting ? 'Exporting...' : 'Export PDF'}
-              </button>
-              <button
-                onClick={handlePrint}
-                className="flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white rounded-lg transition-colors"
-              >
-                <Printer className="w-4 h-4 mr-2" />
-                Print
-              </button>
-            </div>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded-lg text-sm hover:bg-white/20 transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-          {/* Left Column - Patient & Test Info */}
-          <div className="lg:col-span-1 space-y-6">
+        {/* ── Result hero banner ─────────────────────────────────────────── */}
+        <div className={`relative rounded-2xl bg-gradient-to-r ${theme.bg} overflow-hidden shadow-2xl`}>
+          {/* subtle texture */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
 
-                         {/* Diagnosis Card Component */}
-             <DiagnosisCard result={testResult} images={images} />
-             
-             {/* Backend Logic Error Warning */}
-             {hasBackendError && (
-               <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4">
-                 <div className="flex items-start">
-                   <AlertTriangle className="w-5 h-5 text-yellow-400 mr-3 mt-0.5 flex-shrink-0" />
-                   <div>
-                     <p className="text-yellow-100 font-medium">Backend Logic Error Detected</p>
-                     <p className="text-yellow-200 text-sm mt-1">
-                       The system detected {actualParasiteCount} parasites but the backend marked this as negative. 
-                       This indicates a potential issue with the backend analysis logic.
-                     </p>
-                   </div>
-                 </div>
-               </div>
-             )}
+          <div className="relative px-6 py-6 sm:px-8 sm:py-7">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 
-            {/* Patient Information */}
-            {patient && (
-              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <User className="w-5 h-5 mr-2 text-blue-400" />
-                  Patient Information
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-blue-200">Name:</span>
-                    <span className="font-medium text-white">
-                      {patient.firstName} {patient.lastName}
+              {/* Status side */}
+              <div className="flex items-center gap-5">
+                <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 shrink-0">
+                  <StatusIcon className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold border ${theme.badge}`}>
+                      <span className={`w-2 h-2 rounded-full ${theme.dot} animate-pulse`} />
+                      {theme.label}
                     </span>
+                    {reviewed && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white/20 text-white text-xs font-medium border border-white/30">
+                        <ShieldCheck className="w-3 h-3" />Clinically Reviewed
+                      </span>
+                    )}
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-blue-200">Patient ID:</span>
-                    <span className="font-mono text-sm text-white bg-white/10 px-2 py-1 rounded">
-                      {patient.patientId}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-blue-200">Age:</span>
-                    <span className="text-white">{patient.age} years</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-blue-200">Gender:</span>
-                    <span className="text-white capitalize">{patient.gender}</span>
-                  </div>
-                  {patient.phoneNumber && (
-                    <div className="flex justify-between">
-                      <span className="text-blue-200">Phone:</span>
-                      <span className="text-white">{patient.phoneNumber}</span>
-                    </div>
+                  {isPositive && parasite && (
+                    <p className="text-white text-lg font-semibold">
+                      {PARASITE_NAMES[parasite.type] || parasite.type}
+                    </p>
+                  )}
+                  {isPositive && parasite && (
+                    <p className="text-white/70 text-sm">
+                      {parasite.confidence?.toFixed(1)}% AI confidence
+                      {finalSeverity && finalSeverity !== 'negative' && (
+                        <span className="ml-3 font-medium text-white/90">· {testResult.severity?.note || `${finalSeverity} severity`}</span>
+                      )}
+                    </p>
+                  )}
+                  {isNegative && (
+                    <p className="text-white text-lg font-semibold">No malaria parasites detected</p>
+                  )}
+                  {isSuspect && (
+                    <p className="text-white text-sm mt-1 max-w-md">
+                      Parasites detected but no WBCs found — images may not be valid blood smears
+                    </p>
+                  )}
+                  {isInvalid && (
+                    <p className="text-white text-sm mt-1">Uploaded images were not recognised as blood smear slides</p>
                   )}
                 </div>
               </div>
-            )}
 
-            {/* Test Information */}
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <TestTube className="w-5 h-5 mr-2 text-blue-400" />
-                Test Information
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-blue-200">Date & Time:</span>
-                  <span className="text-white flex items-center text-sm">
-                    <Calendar className="w-3 h-3 mr-1 text-blue-400" />
-                    {formatDate(testResult.createdAt)}
-                  </span>
-                </div>
-                {technician && (
-                  <div className="flex justify-between">
-                    <span className="text-blue-200">Technician:</span>
-                    <span className="text-white">
-                      {technician.firstName} {technician.lastName}
-                    </span>
-                  </div>
+              {/* Patient / test quick info */}
+              <div className="sm:text-right text-sm space-y-1 shrink-0">
+                {patient && (
+                  <p className="text-white font-semibold text-base">
+                    {patient.firstName} {patient.lastName}
+                  </p>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-blue-200">Priority:</span>
-                  <span className="text-white capitalize">
-                    {testResult.test?.priority || 'Normal'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-blue-200">Sample Type:</span>
-                  <span className="text-white">Blood Smear</span>
-                </div>
-                {testResult.apiResponse?.processingTime && (
-                  <div className="flex justify-between">
-                    <span className="text-blue-200">Processing Time:</span>
-                    <span className="text-white flex items-center">
-                      <Clock className="w-3 h-3 mr-1 text-blue-400" />
-                      {testResult.apiResponse.processingTime}s
-                    </span>
-                  </div>
+                {patient && (
+                  <p className="text-white/70">{patient.patientId} · {patient.age} yrs · <span className="capitalize">{patient.gender}</span></p>
+                )}
+                <p className="text-white/60 flex items-center gap-1 sm:justify-end">
+                  <Calendar className="w-3 h-3" />
+                  {fmtDate(testResult.createdAt)}
+                  <span className="opacity-60 ml-1">{fmtTime(testResult.createdAt)}</span>
+                </p>
+                {technician && (
+                  <p className="text-white/60 text-xs">
+                    Technician: {technician.firstName} {technician.lastName}
+                  </p>
                 )}
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* AI Analysis Quality */}
-            {testResult.analysisQuality && (
-              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Shield className="w-5 h-5 mr-2 text-blue-400" />
-                  Analysis Quality
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-blue-200">Quality Score:</span>
-                    <div className="flex items-center">
-                      <div className="w-32 bg-white/20 rounded-full h-2 mr-3">
-                        <div 
-                          className="bg-green-400 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${testResult.analysisQuality.overallScore || 0}%` }}
-                        />
-                      </div>
-                      <span className="text-white font-medium">
-                        {testResult.analysisQuality.overallScore || 0}%
-                      </span>
+        {/* ── Main grid ─────────────────────────────────────────────────── */}
+        <div className="grid lg:grid-cols-3 gap-6">
+
+          {/* ── Left column: stats + info ─────────────────────────────── */}
+          <div className="space-y-5">
+
+            {/* Metric cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard icon={Microscope}  label="Parasites"   value={parasiteCount} color={isPositive && parasiteCount > 0 ? 'rose' : 'green'} />
+              <StatCard icon={Droplets}    label="WBCs"        value={wbcCount}       color="blue" />
+              <StatCard icon={ImageIcon}   label="Images"      value={imageCount}     color="purple" />
+              <StatCard
+                icon={TrendingUp}
+                label="P/WBC Ratio"
+                value={ratio.toFixed(2)}
+                color={ratio >= 5 ? 'rose' : ratio >= 1 ? 'amber' : 'green'}
+                sub={ratio >= 5 ? 'High density' : ratio >= 1 ? 'Low density' : 'Normal'}
+              />
+              <StatCard
+                icon={Percent}
+                label="Parasitemia"
+                value={parasitemia > 0
+                  ? `${Math.round(parasitemia).toLocaleString()} p/µL`
+                  : (isPositive ? '—' : 'Neg.')}
+                color={parasitemia >= 10000 ? 'rose' : parasitemia >= 1000 ? 'amber' : parasitemia > 0 ? 'green' : 'blue'}
+                sub={parasitemiaIsPreliminary ? 'Unconfirmed estimate' : parasitemia > 0 ? 'WHO confirmed' : null}
+              />
+            </div>
+
+            {/* Preliminary parasitemia flag warning */}
+            {parasitemiaIsPreliminary && parasitemiaNote && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-200 leading-relaxed">{parasitemiaNote}</p>
+                </div>
+              </div>
+            )}
+
+            {/* AI confidence bar */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-300 flex items-center gap-2">
+                  <Brain className="w-4 h-4" />AI Confidence
+                </span>
+                <span className="text-white font-bold text-sm">{confidence.toFixed(1)}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ${
+                    confidence >= 80 ? 'bg-gradient-to-r from-emerald-400 to-green-500' :
+                    confidence >= 60 ? 'bg-gradient-to-r from-amber-400 to-yellow-500' :
+                                       'bg-gradient-to-r from-rose-400 to-red-500'
+                  }`}
+                  style={{ width: `${Math.min(100, confidence)}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-white/30 mt-1">
+                <span>Low</span><span>Medium</span><span>High</span>
+              </div>
+            </div>
+
+            {/* Inference timing (only if present) */}
+            {testResult.timing?.total_ms > 0 && (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4 text-cyan-400" />
+                  <span className="text-sm font-medium text-blue-300">Inference Timing</span>
+                  <span className="ml-auto text-xs text-white/40 bg-white/10 px-2 py-0.5 rounded-full">
+                    {testResult.modelType || 'ONNX'}
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  {[
+                    ['Preprocess',  testResult.timing.totalPreprocess_ms],
+                    ['Inference',   testResult.timing.totalInference_ms],
+                    ['Postprocess', testResult.timing.totalPostprocess_ms],
+                  ].filter(([, ms]) => ms > 0).map(([label, ms]) => (
+                    <div key={label} className="flex justify-between text-white/60">
+                      <span>{label}</span>
+                      <span>{`${ms.toFixed(0)} ms`}</span>
                     </div>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-blue-200">Confidence Level:</span>
-                    <span className={`text-sm font-medium ${
-                      testResult.analysisQuality.confidenceLevel === 'high' 
-                        ? 'text-green-300' 
-                        : testResult.analysisQuality.confidenceLevel === 'medium'
-                        ? 'text-yellow-300'
-                        : 'text-red-300'
-                    }`}>
-                      {testResult.analysisQuality.confidenceLevel?.toUpperCase() || 'N/A'}
+                  ))}
+                  <div className="flex justify-between text-white font-semibold pt-1.5 border-t border-white/10">
+                    <span>Total</span>
+                    <span className="text-cyan-300">
+                      {testResult.timing.total_ms >= 1000
+                        ? `${(testResult.timing.total_ms / 1000).toFixed(2)} s`
+                        : `${testResult.timing.total_ms.toFixed(0)} ms`}
                     </span>
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Patient & test details */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              {patient && (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm font-semibold text-white">Patient</span>
+                  </div>
+                  <div className="mb-3">
+                    <InfoRow label="Name"      value={`${patient.firstName} ${patient.lastName}`} />
+                    <InfoRow label="Patient ID" value={patient.patientId} mono />
+                    <InfoRow label="Age"        value={`${patient.age} years`} />
+                    <InfoRow label="Gender"     value={patient.gender} />
+                    {patient.phoneNumber && <InfoRow label="Phone" value={patient.phoneNumber} />}
+                    {patient.bloodType && <InfoRow label="Blood Type" value={patient.bloodType} />}
+                  </div>
+                  <div className="border-t border-white/10 pt-3 mt-1" />
+                </>
+              )}
+
+              <div className="flex items-center gap-2 mb-2">
+                <TestTube className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-semibold text-white">Test</span>
+              </div>
+              <InfoRow label="Test ID"     value={testId} mono />
+              <InfoRow label="Date"        value={fmtDate(testResult.createdAt)} />
+              <InfoRow label="Time"        value={fmtTime(testResult.createdAt)} />
+              <InfoRow label="Sample Type" value={testResult.test?.sampleType || 'Blood Smear'} />
+              <InfoRow label="Priority"    value={testResult.test?.priority || 'Normal'} />
+              {technician && <InfoRow label="Technician" value={`${technician.firstName} ${technician.lastName}`} />}
+              {testResult.apiResponse?.processingTime && (
+                <InfoRow label="Processing" value={`${testResult.apiResponse.processingTime}s`} />
+              )}
+            </div>
 
           </div>
 
-          {/* Right Column - Analysis Results */}
+          {/* ── Right column: sign-off + images ──────────────────────── */}
           <div className="lg:col-span-2 space-y-6">
-            
-            {/* ✅ ENHANCED: Image Analysis Component */}
-            <ImageAnnotation 
-              images={images} 
-              resultId={testResult._id}
+
+            {/* Clinical sign-off — passes images so the clinician can edit detections inline */}
+            <ConfirmationPanel
               testId={testId}
+              diagnosisResult={testResult}
+              images={images}
+              onConfirmed={handleConfirmed}
             />
 
-            {/* Detection Features Information */}
-            <div className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/30 rounded-xl shadow-xl p-6 backdrop-blur-sm">
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center">
-                <div className="p-3 bg-gradient-to-br from-blue-500/20 to-blue-600/30 rounded-xl border border-blue-500/40 backdrop-blur-sm mr-4">
-                  <Target className="w-6 h-6 text-blue-400" />
-                </div>
-                Detection Features
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center space-x-2 text-green-300">
-                  <div className="w-2 h-2 bg-green-400 rounded-full" />
-                  <span>Parasite Detection</span>
-                </div>
-                <div className="flex items-center space-x-2 text-blue-300">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full" />
-                  <span>WBC Detection</span>
-                </div>
-                <div className="flex items-center space-x-2 text-purple-300">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full" />
-                  <span>Bounding Boxes</span>
-                </div>
-                <div className="flex items-center space-x-2 text-yellow-300">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full" />
-                  <span>Confidence Scoring</span>
-                </div>
-              </div>
-            </div>
+            {/* Treatment & follow-up (positive cases only) */}
+            <TreatmentPanel testId={testId} diagnosisResult={testResult} />
 
-
-
-            {/* Medical Recommendations */}
-            {isPositive && (
-              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <AlertTriangle className="w-5 h-5 mr-2 text-yellow-400" />
-                  Medical Recommendations
-                </h3>
-                <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
-                  <div className="flex items-start">
-                    <AlertTriangle className="w-5 h-5 text-yellow-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-yellow-100 font-medium mb-2">
-                        Immediate treatment required for malaria infection.
-                      </p>
-                      <p className="text-yellow-200 text-sm">
-                        Please consult with a healthcare provider immediately for proper treatment protocol.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+            {/* Annotated image viewer */}
+            {images.length > 0 ? (
+              <ImageAnnotation images={images} resultId={testResult._id} testId={testId} />
+            ) : (
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center">
+                <ImageIcon className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                <p className="text-white/40 text-sm">No annotated images available</p>
               </div>
             )}
-
-            {/* Manual Review Notes */}
-            {testResult.manualReview?.isReviewed && testResult.manualReview.reviewNotes && (
-              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <FileText className="w-5 h-5 mr-2 text-purple-400" />
-                  Review Notes
-                </h3>
-                <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4">
-                  <p className="text-purple-100">{testResult.manualReview.reviewNotes}</p>
-                  {testResult.manualReview.overriddenStatus && (
-                    <div className="mt-3 flex items-center space-x-2">
-                      <span className="text-purple-200 text-sm">Final Status: </span>
-                      <SeverityBadge severity={testResult.manualReview.overriddenStatus} size="sm" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Technical Information */}
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl shadow-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-6 flex items-center">
-                <FileText className="w-5 h-5 mr-2 text-blue-400" />
-                Technical Information
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-blue-200">Analysis Method:</span>
-                  <span className="text-white ml-2">AI-Powered Microscopy</span>
-                </div>
-                <div>
-                  <span className="text-blue-200">Images Processed:</span>
-                  <span className="text-white ml-2">{images.length || 0}</span>
-                </div>
-                <div>
-                  <span className="text-blue-200">Quality Score:</span>
-                  <span className="text-green-300 ml-2">
-                    {testResult.analysisQuality?.overallScore ? 
-                      `${testResult.analysisQuality.overallScore.toFixed(0)}%` : 
-                      'Excellent'
-                    }
-                  </span>
-                </div>
-                <div>
-                  <span className="text-blue-200">Reviewed By:</span>
-                  <span className="text-white ml-2">
-                    {technician ? `${technician.firstName} ${technician.lastName}` : 'AI System'}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-blue-200">Processing Mode:</span>
-                  <span className="text-blue-300 ml-2 font-medium">Basic Detection</span>
-                </div>
-                <div>
-                  <span className="text-blue-200">Model Version:</span>
-                  <span className="text-white ml-2 font-medium">V12.pt</span>
-                </div>
-                <div>
-                  <span className="text-blue-200">Confidence Threshold:</span>
-                  <span className="text-white ml-2 font-medium">26%</span>
-                </div>
-                <div>
-                  <span className="text-blue-200">API Version:</span>
-                  <span className="text-white ml-2 font-medium">1.0.0</span>
-                </div>
-              </div>
-            </div>
 
           </div>
         </div>

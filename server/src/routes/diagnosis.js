@@ -530,6 +530,11 @@ router.post('/:testId/review',
     .optional()
     .isIn(['low', 'medium', 'high'])
     .withMessage('Reviewer confidence must be low, medium, or high'),
+  body('reviewedDetections').optional().isArray(),
+  body('reviewedWbcs').optional().isArray(),
+  body('flaggedParasiteIds').optional().isArray(),
+  body('flaggedWbcIds').optional().isArray(),
+  body('imagePaths').optional().isArray(),
   validateRequest,
   diagnosisController.addManualReview
 );

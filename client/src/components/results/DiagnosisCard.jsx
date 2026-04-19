@@ -17,7 +17,10 @@ const DiagnosisCard = ({ result, images = [] }) => {
   // Fix: Check for both POS and POSITIVE status values, and also check actual parasite count
   const actualParasiteCount = result.totalParasites || images.reduce((sum, img) => sum + (img.annotations?.parasites?.length || 0), 0) || 0;
   const actualWbcCount = result.totalWBC || images.reduce((sum, img) => sum + (img.annotations?.wbcs?.length || 0), 0) || 0;
-  const isPositive = result.status === 'POS' || result.status === 'POSITIVE' || actualParasiteCount > 0;
+  const isInvalidSample = result.status === 'INVALID_SAMPLE';
+  const isSuspicious = result.status === 'SUSPICIOUS';
+  const isPositive = !isInvalidSample && !isSuspicious && (result.status === 'POS' || result.status === 'POSITIVE' || actualParasiteCount > 0);
+  const invalidSamples = result.invalidSamples || [];
   let confidence = result.mostProbableParasite?.confidence || result.confidence || 0;
   confidence = confidence <= 1 ? confidence * 100 : confidence;
 
@@ -27,13 +30,17 @@ const DiagnosisCard = ({ result, images = [] }) => {
 
   const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
-      case 'POS': 
+      case 'POS':
       case 'POSITIVE':
         return 'text-rose-200 bg-rose-500/20 border-rose-500/30';
       case 'NEG':
       case 'NEGATIVE':
         return 'text-green-300 bg-green-500/20 border-green-500/30';
-      default: 
+      case 'INVALID_SAMPLE':
+        return 'text-amber-300 bg-amber-500/20 border-amber-500/30';
+      case 'SUSPICIOUS':
+        return 'text-orange-300 bg-orange-500/20 border-orange-500/30';
+      default:
         return 'text-blue-300 bg-blue-500/20 border-blue-500/30';
     }
   };
@@ -82,30 +89,36 @@ const DiagnosisCard = ({ result, images = [] }) => {
           {/* Enhanced Status Icon */}
           <div className="relative mx-auto mb-6">
             <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto border-2 backdrop-blur-md transition-all duration-500 hover:scale-110 ${
-              isPositive 
-                ? 'bg-gradient-to-br from-rose-500/20 to-rose-600/30 border-rose-400/50' 
-                : 'bg-gradient-to-br from-green-500/20 to-green-600/30 border-green-400/50'
+              isInvalidSample
+                ? 'bg-gradient-to-br from-amber-500/20 to-amber-600/30 border-amber-400/50'
+                : isSuspicious
+                  ? 'bg-gradient-to-br from-orange-500/20 to-orange-600/30 border-orange-400/50'
+                  : isPositive
+                    ? 'bg-gradient-to-br from-rose-500/20 to-rose-600/30 border-rose-400/50'
+                    : 'bg-gradient-to-br from-green-500/20 to-green-600/30 border-green-400/50'
             }`}>
-              {isPositive ? (
+              {isInvalidSample || isSuspicious ? (
+                <AlertTriangle className={`w-10 h-10 drop-shadow-lg ${isInvalidSample ? 'text-amber-300' : 'text-orange-300'}`} />
+              ) : isPositive ? (
                 <XCircle className="w-10 h-10 text-rose-300 drop-shadow-lg" />
               ) : (
                 <CheckCircle className="w-10 h-10 text-green-400 drop-shadow-lg" />
               )}
             </div>
-            {/* Animated Ring */}
-            {isPositive && (
+            {isPositive && !isInvalidSample && (
               <div className="absolute inset-0 rounded-full border-2 border-rose-400/30 animate-ping" />
             )}
-            {/* Pulse Indicator */}
-            {isPositive && (
+            {isPositive && !isInvalidSample && (
               <Activity className="w-6 h-6 text-rose-300 absolute -bottom-1 -right-1 animate-pulse drop-shadow-md" />
             )}
           </div>
 
           {/* Enhanced Status Badge */}
           <div className={`inline-flex items-center px-6 py-3 rounded-2xl text-xl font-bold border-2 backdrop-blur-md transition-all duration-300 hover:scale-105 ${getStatusColor(result.status)}`}>
-            <div className={`w-3 h-3 rounded-full mr-3 animate-pulse ${isPositive ? 'bg-rose-400' : 'bg-green-400'}`} />
-            {isPositive ? 'POSITIVE' : 'NEGATIVE'}
+            <div className={`w-3 h-3 rounded-full mr-3 animate-pulse ${
+              isInvalidSample ? 'bg-amber-400' : isSuspicious ? 'bg-orange-400' : isPositive ? 'bg-rose-400' : 'bg-green-400'
+            }`} />
+            {isInvalidSample ? 'INVALID SAMPLE' : isSuspicious ? 'SUSPICIOUS' : isPositive ? 'POSITIVE' : 'NEGATIVE'}
           </div>
 
           {/* Enhanced Confidence Display */}
@@ -191,8 +204,56 @@ const DiagnosisCard = ({ result, images = [] }) => {
           </div>
         )}
 
+        {/* Invalid Sample Banner */}
+        {isInvalidSample && invalidSamples.length > 0 && (
+          <div className="mt-8 bg-gradient-to-br from-amber-500/15 via-amber-500/10 to-amber-600/5 border border-amber-500/40 rounded-xl p-6 backdrop-blur-md">
+            <div className="flex items-start">
+              <div className="p-2 bg-amber-500/20 rounded-lg mr-3 border border-amber-500/30 shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5 text-amber-300" />
+              </div>
+              <div className="flex-1">
+                <span className="font-semibold text-amber-200 text-lg">Images Not Recognised as Blood Smears</span>
+                <p className="text-amber-100 text-sm mt-1 mb-4">
+                  The following images were rejected before analysis. Please upload properly
+                  stained blood smear slides.
+                </p>
+                <ul className="space-y-2">
+                  {invalidSamples.map((s, i) => (
+                    <li key={i} className="flex items-start space-x-2 text-sm bg-amber-500/10 rounded-lg p-3 border border-amber-500/20">
+                      <span className="text-amber-300 font-medium shrink-0">{s.imageId}</span>
+                      <span className="text-amber-100">— {s.reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Suspicious Sample Banner */}
+        {isSuspicious && (
+          <div className="mt-8 bg-gradient-to-br from-orange-500/15 via-orange-500/10 to-orange-600/5 border border-orange-500/40 rounded-xl p-6 backdrop-blur-md">
+            <div className="flex items-start">
+              <div className="p-2 bg-orange-500/20 rounded-lg mr-3 border border-orange-500/30 shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5 text-orange-300" />
+              </div>
+              <div>
+                <span className="font-semibold text-orange-200 text-lg">Suspicious Result — Not Clinically Valid</span>
+                <p className="text-orange-100 text-sm mt-2">
+                  The AI detected potential parasites but found <strong>zero white blood cells</strong> in the same images.
+                  In any genuine blood smear, WBCs are always present. This combination strongly suggests
+                  the uploaded images are <strong>not blood smear slides</strong>. Do not use this result clinically.
+                </p>
+                <p className="text-orange-200 text-xs mt-3 font-medium">
+                  Please re-upload properly stained Giemsa blood smear images.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Enhanced Result Display */}
-        {!isPositive ? (
+        {isInvalidSample || isSuspicious ? null : !isPositive ? (
           // Negative Result
           <div className="mt-8 bg-gradient-to-br from-green-500/15 via-green-500/10 to-green-600/5 border border-green-500/40 rounded-xl p-6 backdrop-blur-md">
             <div className="flex items-center">

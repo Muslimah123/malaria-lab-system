@@ -721,21 +721,13 @@ const ProcessingStatus = ({
             <span>Session Information</span>
           </h4>
           
-          {/* Debug info */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg text-xs text-blue-300">
-              <p><strong>Debug:</strong> createdAt: {JSON.stringify(session.createdAt)}</p>
-              <p><strong>Debug:</strong> startTime: {JSON.stringify(session.startTime)}</p>
-            </div>
-          )}
-          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white/5 rounded-lg p-4 border border-white/10">
               <div className="flex items-center space-x-2 mb-2">
                 <Database className="w-4 h-4 text-indigo-400" />
                 <span className="text-gray-300 text-sm font-medium">Session ID</span>
               </div>
-              <p className="text-white font-mono text-sm">{session.sessionId}</p>
+              <p className="text-white font-mono text-sm truncate" title={session.sessionId}>{session.sessionId}</p>
             </div>
             <div className="bg-white/5 rounded-lg p-4 border border-white/10">
               <div className="flex items-center space-x-2 mb-2">

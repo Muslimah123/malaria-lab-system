@@ -27,7 +27,8 @@ const diagnosisRoutes = require('./routes/diagnosis');
 const reportRoutes = require('./routes/reports');
 const integrationRoutes = require('./routes/integration');
 const analyticsRoutes = require('./routes/analytics');
-const settingsRoutes = require('./routes/settings'); // ✅ ADDED: Import settings routes
+const settingsRoutes = require('./routes/settings');
+const treatmentRoutes = require('./routes/treatments');
 
 class App {
   constructor() {
@@ -148,7 +149,8 @@ class App {
     this.app.use(`${apiPrefix}/reports`, reportRoutes);
     this.app.use(`${apiPrefix}/integration`, integrationRoutes);
     this.app.use(`${apiPrefix}/analytics`, analyticsRoutes);
-    this.app.use(`${apiPrefix}/settings`, settingsRoutes); // ✅ ADDED: Mount settings routes
+    this.app.use(`${apiPrefix}/settings`, settingsRoutes);
+    this.app.use(`${apiPrefix}/treatments`, treatmentRoutes);
 
     // Root endpoint
     this.app.get('/', (req, res) => {

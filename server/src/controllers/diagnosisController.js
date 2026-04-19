@@ -1,15 +1,19 @@
 // 📁 server/src/controllers/diagnosisController.js
+const crypto = require('crypto');
 const DiagnosisResult = require('../models/DiagnosisResult');
+const User = require('../models/User');
 const Test = require('../models/Test');
 const Patient = require('../models/Patient');
 const AuditLog = require('../models/AuditLog');
 const auditService = require('../services/auditService');
 const reportService = require('../services/reportService');
+const reportController = require('./reportController');
 const fileService = require('../services/fileService');
 const diagnosisService = require('../services/diagnosisService'); // ✅ FIXED: Added missing import
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorTypes');
 const { socketService } = require('../socket');
+const emailService = require('../services/emailService');
 const path = require('path');
 
 class DiagnosisController {
@@ -186,33 +190,164 @@ class DiagnosisController {
   async addManualReview(req, res, next) {
     try {
       const { testId } = req.params;
-      const { reviewNotes, overriddenStatus, overriddenSeverity, reviewerConfidence = 'medium' } = req.body;
+      const {
+        reviewNotes,
+        overriddenStatus,
+        overriddenSeverity,
+        reviewerConfidence = 'medium',
+        password,
+        // Detection-level review fields (optional — only present when clinician edited detections)
+        reviewedDetections,   // [{ parasiteId, type, confidence, bbox, source, originalParasiteId }]
+        reviewedWbcs,         // [{ wbcId, confidence, bbox, source }]
+        flaggedParasiteIds,   // [Number]
+        flaggedWbcIds,        // [Number]
+        // Per-image original paths needed to re-render reviewed images
+        imagePaths,           // [{ imageId, originalPath }]
+      } = req.body;
       const reviewer = req.user;
+
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password is required to sign off on a diagnosis'
+        });
+      }
+
+      const userWithPassword = await User.findById(reviewer._id).select('+password');
+      const passwordValid = await userWithPassword.comparePassword(password);
+      if (!passwordValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Incorrect password. Sign-off rejected.'
+        });
+      }
 
       const result = await DiagnosisResult.findOne({ testId: testId.toUpperCase() })
         .populate('test', 'testId patientId');
 
       if (!result) {
-        return res.status(404).json({
-          success: false,
-          message: 'Diagnosis result not found'
-        });
+        return res.status(404).json({ success: false, message: 'Diagnosis result not found' });
       }
 
-      // Check if already reviewed
       if (result.manualReview.isReviewed) {
-        return res.status(400).json({
-          success: false,
-          message: 'Diagnosis result has already been reviewed'
-        });
+        return res.status(400).json({ success: false, message: 'Diagnosis result has already been reviewed' });
       }
 
-      // Add manual review
+      const verificationCode = `VRF-${testId.toUpperCase()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+
+      // --- Recompute parasitemia from reviewed detections if edits were submitted ---
+      let reviewedCounts = {};
+      const detectionsEdited = !!(reviewedDetections || reviewedWbcs);
+
+      if (detectionsEdited) {
+        const pCount = (reviewedDetections || []).length;
+        const wCount = (reviewedWbcs || []).length;
+        const ratio  = wCount > 0 ? pCount / wCount : 0;
+        const WHO    = 8000;
+
+        let density = 0, isPrelim = false, flag = null, note = null;
+
+        if (pCount === 0) {
+          density = 0; isPrelim = false; flag = null; note = null;
+        } else if (wCount === 0) {
+          density = 0; isPrelim = true; flag = 'P3';
+          note = `Parasitaemia cannot be calculated: no WBCs detected after review. (${pCount} parasite(s) confirmed, 0 WBCs.)`;
+        } else if (wCount >= 200 && pCount >= 100) {
+          density = Math.round((pCount / wCount) * WHO * 100) / 100;
+        } else if (wCount >= 500) {
+          density = Math.round((pCount / wCount) * WHO * 100) / 100;
+        } else if (pCount >= 100) {
+          density = Math.round((pCount / wCount) * WHO * 100) / 100;
+          isPrelim = true; flag = 'P1';
+          note = `Preliminary: ${pCount} parasites confirmed but only ${wCount} WBCs counted. WHO requires ≥200 WBCs for high-density infections.`;
+        } else if (wCount >= 200) {
+          density = Math.round((pCount / wCount) * WHO * 100) / 100;
+          isPrelim = true; flag = 'P2';
+          note = `Preliminary: fewer than 100 parasites confirmed but only ${wCount} WBCs counted. WHO requires ≥500 WBCs for low-density infections.`;
+        } else {
+          density = Math.round((pCount / wCount) * WHO * 100) / 100;
+          isPrelim = true; flag = 'P1+P2';
+          note = `Preliminary: both WBC thresholds unmet after review (${pCount} parasites, ${wCount} WBCs).`;
+        }
+
+        reviewedCounts = {
+          parasiteCountReviewed:               pCount,
+          wbcCountReviewed:                    wCount,
+          parasiteWbcRatioReviewed:            ratio,
+          parasiteDensityPerUlReviewed:        density,
+          parasiteDensityIsPreliminaryReviewed: isPrelim,
+          parasiteDensityFlagReviewed:         flag,
+          parasiteDensityNoteReviewed:         note,
+        };
+      }
+
+      // --- Call Flask to re-render reviewed annotated images ---
+      // Resolve original image paths server-side from the upload session.
+      // Never trust browser-sent paths — they are public URLs, not server file paths.
+      let reviewedImages = [];
+      if (detectionsEdited) {
+        try {
+          const uploadSession = await fileService.getUploadSessionForTest(result.test._id);
+          const resolvedPaths = (result.detections || []).map(det => {
+            let originalPath = null;
+            if (uploadSession?.files) {
+              const match = uploadSession.files.find(f =>
+                f.filename === det.imageId ||
+                f.filename?.includes(det.imageId) ||
+                det.imageId?.includes(f.filename) ||
+                f.originalName === det.originalFilename
+              );
+              if (match) originalPath = match.path;
+            }
+            // Fall back to deriving path from the annotatedImagePath
+            if (!originalPath && det.annotatedImagePath) {
+              const uploadDir = process.env.UPLOAD_DIR || '/app/uploads';
+              originalPath = path.join(uploadDir, 'images', path.basename(det.annotatedImagePath));
+            }
+            return { imageId: det.imageId, originalPath };
+          }).filter(p => p.originalPath);
+
+          if (resolvedPaths.length > 0) {
+            const flaskUrl = process.env.FLASK_API_URL || 'http://flask-api:5000';
+            const axios = require('axios');
+            const renderRes = await axios.post(`${flaskUrl}/render-reviewed`, {
+              imagePaths:         resolvedPaths,
+              reviewedDetections: reviewedDetections || [],
+              reviewedWbcs:       reviewedWbcs || [],
+              reviewerName:       `${reviewer.firstName} ${reviewer.lastName}`,
+            }, { timeout: 120000 });
+
+            if (renderRes.data?.reviewedImages) {
+              const baseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
+              reviewedImages = renderRes.data.reviewedImages.map(img => ({
+                imageId:           img.imageId,
+                reviewedImagePath: img.reviewedImagePath,
+                reviewedImageUrl:  `${baseUrl}/uploads/reviewed/${path.basename(img.reviewedImagePath)}`,
+              }));
+              logger.info(`Re-render complete: ${reviewedImages.length} reviewed image(s) generated`);
+            }
+          }
+        } catch (renderErr) {
+          logger.warn('Flask re-render failed (non-critical):', renderErr.message);
+        }
+      }
+
       const reviewData = {
         reviewNotes,
         overriddenStatus,
         overriddenSeverity,
-        reviewerConfidence
+        reviewerConfidence,
+        signedByName: `${reviewer.firstName} ${reviewer.lastName}`,
+        verificationCode,
+        ...(detectionsEdited && {
+          reviewedDetections:  reviewedDetections || [],
+          reviewedWbcs:        reviewedWbcs || [],
+          flaggedParasiteIds:  flaggedParasiteIds || [],
+          flaggedWbcIds:       flaggedWbcIds || [],
+          detectionsEdited:    true,
+          reviewedImages,
+          ...reviewedCounts,
+        }),
       };
 
       await result.addManualReview(reviewData, reviewer._id);
@@ -251,16 +386,52 @@ class DiagnosisController {
         finalSeverity: result.finalSeverity
       });
 
-      res.json({
-        success: true,
-        message: 'Manual review added successfully',
-        data: {
-          result: {
+      // Email notification — fire-and-forget, non-blocking
+      try {
+        const testDoc = await Test.findOne({ testId: result.testId }).populate('patient');
+        const patientEmail = testDoc?.patient?.email;
+        const patientName  = testDoc?.patient
+          ? `${testDoc.patient.firstName} ${testDoc.patient.lastName}`
+          : result.testId;
+        if (patientEmail) {
+          emailService.sendSignOffNotification({
+            to: patientEmail,
+            patientName,
             testId: result.testId,
             finalStatus: result.finalStatus,
-            finalSeverity: result.finalSeverity,
             reviewedBy: reviewer.fullName,
-            reviewedAt: result.manualReview.reviewedAt
+            verificationCode: result.manualReview.verificationCode,
+            severity: result.finalSeverity
+          });
+        }
+      } catch (emailErr) {
+        logger.warn('Sign-off email failed (non-critical):', emailErr.message);
+      }
+
+      res.json({
+        success: true,
+        message: 'Diagnosis signed off successfully',
+        data: {
+          result: {
+            testId:              result.testId,
+            finalStatus:         result.finalStatus,
+            finalSeverity:       result.finalSeverity,
+            reviewedBy:          reviewer.fullName,
+            reviewedAt:          result.manualReview.reviewedAt,
+            verificationCode:    result.manualReview.verificationCode,
+            reviewNotes,
+            reviewerConfidence,
+            detectionsEdited,
+            ...(detectionsEdited && {
+              parasiteCountReviewed:               reviewedCounts.parasiteCountReviewed,
+              wbcCountReviewed:                    reviewedCounts.wbcCountReviewed,
+              parasiteWbcRatioReviewed:            reviewedCounts.parasiteWbcRatioReviewed,
+              parasiteDensityPerUlReviewed:        reviewedCounts.parasiteDensityPerUlReviewed,
+              parasiteDensityIsPreliminaryReviewed: reviewedCounts.parasiteDensityIsPreliminaryReviewed,
+              parasiteDensityFlagReviewed:         reviewedCounts.parasiteDensityFlagReviewed,
+              parasiteDensityNoteReviewed:         reviewedCounts.parasiteDensityNoteReviewed,
+              reviewedImages,
+            }),
           }
         }
       });
@@ -340,13 +511,12 @@ class DiagnosisController {
 
         if (detection.annotatedImagePath) {
           try {
-            const sanitizedPath = detection.annotatedImagePath.replace(/^\/+/, '');
-            const annotatedFullPath = path.join(fileService.uploadDir, sanitizedPath);
-            if (await fileService.fileExists(annotatedFullPath)) {
-              const relativeAnnotatedUrl = await fileService.getImageUrl(annotatedFullPath);
+            // annotatedImagePath is an absolute path on the shared volume (/app/uploads/annotated/...)
+            if (await fileService.fileExists(detection.annotatedImagePath)) {
+              const relativeAnnotatedUrl = await fileService.getImageUrl(detection.annotatedImagePath);
               annotatedUrl = `${baseUrl}${relativeAnnotatedUrl}`;
             } else {
-              logger.warn(`Annotated image not found on disk: ${annotatedFullPath}`);
+              logger.warn(`Annotated image not found on disk: ${detection.annotatedImagePath}`);
             }
           } catch (annotatedError) {
             logger.warn('Failed to resolve annotated image path:', annotatedError);
@@ -389,6 +559,7 @@ class DiagnosisController {
             type: parasite.type,
             confidence: confidence,
             boundingBox: boundingBox,
+            parasiteId: parasite.parasiteId ?? null,
             typeFullName: {
               'PF': 'Plasmodium Falciparum',
               'PM': 'Plasmodium Malariae',
@@ -669,11 +840,11 @@ class DiagnosisController {
       let filename;
 
       if (format === 'pdf') {
-        report = await reportService.generateDiagnosisPDF(result);
+        report = await reportController.generatePDFReport(result.test, result);
         contentType = 'application/pdf';
         filename = `diagnosis-${result.testId}.pdf`;
       } else if (format === 'json') {
-        report = JSON.stringify(result.generateReport(), null, 2);
+        report = Buffer.from(JSON.stringify(result.generateReport(), null, 2));
         contentType = 'application/json';
         filename = `diagnosis-${result.testId}.json`;
       }
@@ -1022,6 +1193,11 @@ class DiagnosisController {
       // Calculate and set severity based on results
       newDiagnosisResult.calculateSeverity();
 
+      // Parasitemia % = parasites / (parasites + WBCs) * 100
+      const p = newDiagnosisResult.totalParasites || 0;
+      const w = newDiagnosisResult.totalWbcs || 0;
+      newDiagnosisResult.parasitemia = (p + w) > 0 ? parseFloat(((p / (p + w)) * 100).toFixed(2)) : 0;
+
       await newDiagnosisResult.save();
       logger.info(`Diagnosis result saved with ID: ${newDiagnosisResult._id}`);
 
@@ -1031,7 +1207,7 @@ class DiagnosisController {
 
       // Update the test status
       test.status = 'completed';
-      test.completedAt = new Date();
+      test.processedAt = new Date();
       await test.save();
 
       logger.info(`Diagnosis completed for test ${testId}: Status=${newDiagnosisResult.status}, Severity=${newDiagnosisResult.severity.level}, Parasites=${newDiagnosisResult.totalParasites}, WBCs=${newDiagnosisResult.totalWbcs}`);

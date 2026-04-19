@@ -1193,4 +1193,7 @@ router.get('/export',
   }
 );
 
+// TAT — turnaround time statistics
+router.get('/tat', analyticsController.getTATStats.bind(analyticsController));
+
 module.exports = router;

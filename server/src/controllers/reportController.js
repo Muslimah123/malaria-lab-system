@@ -331,130 +331,305 @@ class ReportController {
   }
 
   /**
-   * Generate PDF report for a single test
+   * Generate a structured clinical PDF report.
    */
   async generatePDFReport(test, diagnosisResult, includeImages = false) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       try {
-        const doc = new PDFDocument({ margin: 50 });
+        // bottom:0 means PDFKit never auto-paginates — we own all page breaks via checkY.
+        // bufferPages lets us add the footer to every page after content is drawn.
+        const doc = new PDFDocument({
+          margins: { top: 50, left: 50, right: 50, bottom: 0 },
+          size: 'A4',
+          bufferPages: true
+        });
         const chunks = [];
-
         doc.on('data', chunk => chunks.push(chunk));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-        // Header
-        doc.fontSize(20).font('Helvetica-Bold')
-           .text('MALARIA DIAGNOSIS REPORT', { align: 'center' });
-        
-        doc.moveDown(1);
-        
-        // Report metadata
-        doc.fontSize(10).font('Helvetica')
-           .text(`Generated: ${new Date().toLocaleString()}`)
-           .text(`Report ID: ${test.testId}`)
-           .moveDown(0.5);
+        const L = 50;
+        const W = doc.page.width - 100;
+        const SAFE_BOTTOM = doc.page.height - 65; // reserve 65pt at bottom for footer
 
-        // Patient Information
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('PATIENT INFORMATION');
-        
-        doc.fontSize(11).font('Helvetica')
-           .text(`Patient ID: ${test.patient.patientId}`)
-           .text(`Name: ${test.patient.firstName} ${test.patient.lastName}`)
-           .text(`Age: ${test.patient.age} years`)
-           .text(`Gender: ${test.patient.gender}`)
-           .moveDown(1);
+        const finalStatus = diagnosisResult.manualReview?.overriddenStatus || diagnosisResult.status;
+        const finalSeverity = diagnosisResult.manualReview?.overriddenSeverity || diagnosisResult.severity?.level;
+        const isPositive = finalStatus === 'POSITIVE';
+        const reviewed = diagnosisResult.manualReview?.isReviewed;
+        const p = test.patient;
+        const tech = test.technician;
+        const reportDate = new Date().toISOString();
 
-        // Test Information
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('TEST INFORMATION');
-        
-        doc.fontSize(11).font('Helvetica')
-           .text(`Test ID: ${test.testId}`)
-           .text(`Test Date: ${test.createdAt.toLocaleDateString()}`)
-           .text(`Technician: ${test.technician.firstName} ${test.technician.lastName}`)
-           .text(`Status: ${test.status.toUpperCase()}`)
-           .moveDown(1);
+        // Explicit page break — no footer drawing here (done at the end via switchToPage)
+        let y = 50;
+        const newPage = () => { doc.addPage(); y = 50; };
+        const checkY = (need) => { if (y + need > SAFE_BOTTOM) newPage(); };
 
-        // Diagnosis Results
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('DIAGNOSIS RESULTS');
+        // Section heading: bold blue label + underline, advances y
+        const sectionHead = (label) => {
+          checkY(32);
+          doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e3a5f')
+             .text(label, L, y, { lineBreak: false });
+          y += 16;
+          doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).stroke('#1e3a5f');
+          y += 6;
+        };
 
-        // Result status with color
-        doc.fontSize(12);
-        if (diagnosisResult.status === 'POS') {
-          doc.fillColor('red').font('Helvetica-Bold')
-             .text('RESULT: POSITIVE FOR MALARIA', { continued: false });
-        } else {
-          doc.fillColor('green').font('Helvetica-Bold')
-             .text('RESULT: NEGATIVE FOR MALARIA', { continued: false });
-        }
+        // Key-value row, advances y by 15
+        const kv = (label, value, x, labelW, totalW) => {
+          checkY(15);
+          doc.fontSize(9).font('Helvetica').fillColor('#666666')
+             .text(label + ':', x, y, { width: labelW, lineBreak: false });
+          doc.fontSize(9).font('Helvetica-Bold').fillColor('#111111')
+             .text(String(value ?? 'N/A'), x + labelW, y, { width: totalW - labelW, lineBreak: false });
+          y += 15;
+        };
 
-        doc.fillColor('black').font('Helvetica');
-
-        if (diagnosisResult.status === 'POS') {
-          if (diagnosisResult.mostProbableParasite) {
-            doc.text(`Most Probable Parasite: ${this.getParasiteName(diagnosisResult.mostProbableParasite.type)}`)
-               .text(`Confidence: ${(diagnosisResult.mostProbableParasite.confidence * 100).toFixed(1)}%`);
-          }
-
-          if (diagnosisResult.severity) {
-            doc.text(`Severity: ${diagnosisResult.severity.level.toUpperCase()}`)
-               .text(`Classification: ${diagnosisResult.severity.classification}`);
-          }
-
-          doc.text(`Parasite-WBC Ratio: ${diagnosisResult.parasiteWbcRatio.toFixed(3)}`);
-        }
-
-        doc.moveDown(1);
-
-        // Detection Details
-        if (diagnosisResult.detections && diagnosisResult.detections.length > 0) {
-          doc.fontSize(14).font('Helvetica-Bold')
-             .text('DETECTION DETAILS');
-
-          diagnosisResult.detections.forEach((detection, index) => {
-            doc.fontSize(12).font('Helvetica-Bold')
-               .text(`Image ${index + 1}: ${detection.imageId}`);
-            
-            doc.fontSize(11).font('Helvetica')
-               .text(`Parasites Detected: ${detection.parasiteCount}`)
-               .text(`White Blood Cells: ${detection.whiteBloodCellsDetected}`)
-               .text(`Parasite-WBC Ratio: ${detection.parasiteWbcRatio.toFixed(3)}`);
-
-            if (detection.parasitesDetected && detection.parasitesDetected.length > 0) {
-              doc.text('Detected Parasites:');
-              detection.parasitesDetected.forEach((parasite, pIndex) => {
-                doc.text(`  ${pIndex + 1}. ${this.getParasiteName(parasite.type)} (${(parasite.confidence * 100).toFixed(1)}% confidence)`);
-              });
-            }
-            doc.moveDown(0.5);
-          });
-        }
-
-        // Recommendations
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('RECOMMENDATIONS');
-
-        doc.fontSize(11).font('Helvetica');
-        if (diagnosisResult.status === 'POS') {
-          doc.text('• Immediate medical consultation recommended')
-             .text('• Begin appropriate antimalarial treatment')
-             .text('• Monitor patient condition closely')
-             .text('• Follow-up testing may be required');
-        } else {
-          doc.text('• No malaria parasites detected')
-             .text('• If symptoms persist, consider other diagnostic tests')
-             .text('• Maintain preventive measures in endemic areas');
-        }
-
-        doc.moveDown(1);
-
-        // Footer
+        // ── HEADER ──────────────────────────────────────────────────────
+        doc.rect(L, 40, W, 52).fill('#1e3a5f');
+        doc.fillColor('white').fontSize(15).font('Helvetica-Bold')
+           .text('MALARIA LABORATORY DECISION SUPPORT SYSTEM', L, 51, { width: W, align: 'center', lineBreak: false });
         doc.fontSize(8).font('Helvetica')
-           .text('This report is generated by an automated system and should be reviewed by qualified medical personnel.', 
-                 { align: 'center' });
+           .text('DIAGNOSTIC REPORT  —  FOR CLINICAL DECISION SUPPORT ONLY', L, 71, { width: W, align: 'center', lineBreak: false });
 
+        // ── DISCLAIMER ──────────────────────────────────────────────────
+        y = 104;
+        doc.rect(L, y, W, 24).fill('#fff3cd');
+        doc.rect(L, y, W, 24).stroke('#e6ac00');
+        doc.fillColor('#7d5a00').fontSize(7.5).font('Helvetica-Bold')
+           .text(
+             'IMPORTANT: This report is generated by an AI-assisted decision support system and is NOT a clinical diagnosis. ' +
+             'Results MUST be reviewed and confirmed by a qualified medical professional before any clinical action is taken.',
+             L + 6, y + 6, { width: W - 12, lineBreak: false }
+           );
+        y += 32;
+
+        // ── META BAR ────────────────────────────────────────────────────
+        doc.fillColor('#333333').fontSize(8).font('Helvetica')
+           .text(`Report ID: ${test.testId}`, L, y, { lineBreak: false });
+        doc.text(`Generated: ${new Date().toLocaleString()}`, L + 170, y, { lineBreak: false });
+        doc.text(`Review Status: ${reviewed ? 'Clinically Reviewed' : 'Pending Review'}`, L + 360, y, { lineBreak: false });
+        y += 12;
+        doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.5).stroke('#cccccc');
+        y += 10;
+
+        // ── PATIENT & TEST INFO (two columns) ────────────────────────────
+        const colW = (W - 16) / 2;
+        const colR = L + colW + 16;
+        const boxH = 106;
+        checkY(boxH + 20);
+        const boxTop = y;
+
+        doc.rect(L, boxTop, colW, boxH).stroke('#dddddd');
+        doc.fillColor('#1e3a5f').fontSize(9).font('Helvetica-Bold')
+           .text('PATIENT INFORMATION', L + 8, boxTop + 7, { lineBreak: false });
+        [
+          ['Patient ID',   p?.patientId],
+          ['Full Name',    p ? `${p.firstName} ${p.lastName}` : null],
+          ['Age / Gender', p ? `${p.age ?? 'N/A'} yrs / ${p.gender ?? 'N/A'}` : null],
+          ['Blood Type',   p?.bloodType],
+          ['Contact',      p?.phoneNumber],
+        ].forEach(([lbl, val], i) => {
+          const ry = boxTop + 23 + i * 16;
+          doc.fontSize(8.5).font('Helvetica').fillColor('#666666')
+             .text(lbl + ':', L + 8, ry, { width: 78, lineBreak: false });
+          doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#111111')
+             .text(String(val ?? 'N/A'), L + 86, ry, { width: colW - 90, lineBreak: false });
+        });
+
+        doc.rect(colR, boxTop, colW, boxH).stroke('#dddddd');
+        doc.fillColor('#1e3a5f').fontSize(9).font('Helvetica-Bold')
+           .text('TEST INFORMATION', colR + 8, boxTop + 7, { lineBreak: false });
+        [
+          ['Test ID',      test.testId],
+          ['Date / Time',  test.createdAt?.toLocaleString()],
+          ['Technician',   tech ? `${tech.firstName} ${tech.lastName}` : null],
+          ['Sample Type',  test.sampleType || 'Blood Smear'],
+          ['Priority',     (test.priority || 'normal').toUpperCase()],
+        ].forEach(([lbl, val], i) => {
+          const ry = boxTop + 23 + i * 16;
+          doc.fontSize(8.5).font('Helvetica').fillColor('#666666')
+             .text(lbl + ':', colR + 8, ry, { width: 78, lineBreak: false });
+          doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#111111')
+             .text(String(val ?? 'N/A'), colR + 86, ry, { width: colW - 90, lineBreak: false });
+        });
+        y = boxTop + boxH + 14;
+
+        // ── AI ANALYSIS RESULT ───────────────────────────────────────────
+        sectionHead('AI ANALYSIS RESULT');
+
+        const bannerH = 24;
+        checkY(bannerH + 10);
+        doc.rect(L, y, W, bannerH).fill(isPositive ? '#c0392b' : '#1a7a4a');
+        doc.fillColor('white').fontSize(12).font('Helvetica-Bold')
+           .text(
+             isPositive ? 'POSITIVE — MALARIA PARASITES DETECTED'
+                        : 'NEGATIVE — NO MALARIA PARASITES DETECTED',
+             L, y + 6, { width: W, align: 'center', lineBreak: false }
+           );
+        y += bannerH + 10;
+
+        if (isPositive && diagnosisResult.mostProbableParasite) {
+          const mp = diagnosisResult.mostProbableParasite;
+          const conf = mp.confidence <= 1 ? mp.confidence * 100 : mp.confidence;
+          kv('Most Probable Parasite', `${mp.fullName || this.getParasiteName(mp.type)} (${mp.type})`, L, 160, W);
+          kv('AI Confidence',          `${conf.toFixed(1)}%`,                                           L, 160, W);
+          kv('Parasite / WBC Ratio',   (diagnosisResult.parasiteWbcRatio || 0).toFixed(3),              L, 160, W);
+          kv('Severity Estimate',      (finalSeverity || 'N/A').toUpperCase(),                          L, 160, W);
+        }
+        kv('Total Parasites Detected', diagnosisResult.totalParasites ?? 0,      L, 160, W);
+        kv('Total WBCs Detected',      diagnosisResult.totalWbcs ?? 0,           L, 160, W);
+        kv('Images Analysed',          diagnosisResult.totalImagesAttempted ?? 0, L, 160, W);
+
+        // ── PER-IMAGE BREAKDOWN ──────────────────────────────────────────
+        if (diagnosisResult.detections?.length > 0) {
+          y += 8;
+          sectionHead('PER-IMAGE DETECTION BREAKDOWN');
+
+          const cx = [0, 200, 250, 305, 368];
+          const cw = [195, 45, 50, 58, 127];
+          const rowH = 15;
+
+          // table header row
+          checkY(rowH * 2);
+          doc.rect(L, y, W, rowH).fill('#dce6f4');
+          ['Image File', 'Parasites', 'WBCs', 'P/WBC', 'Dominant Type'].forEach((h, i) => {
+            doc.fillColor('#1e3a5f').fontSize(7.5).font('Helvetica-Bold')
+               .text(h, L + cx[i] + 3, y + 3, { width: cw[i], lineBreak: false });
+          });
+          y += rowH;
+
+          diagnosisResult.detections.forEach((det, idx) => {
+            checkY(rowH + 2);
+            if (idx % 2 === 0) doc.rect(L, y, W, rowH).fill('#f5f7fa');
+            const dominant = det.parasitesDetected?.[0];
+            const domConf = dominant
+              ? (dominant.confidence <= 1 ? dominant.confidence * 100 : dominant.confidence).toFixed(0)
+              : null;
+            [
+              (det.originalFilename || det.imageId || '').substring(0, 40),
+              String(det.parasiteCount ?? 0),
+              String(det.whiteBloodCellsDetected ?? 0),
+              (det.parasiteWbcRatio ?? 0).toFixed(3),
+              dominant ? `${this.getParasiteName(dominant.type)} (${domConf}%)` : '—'
+            ].forEach((v, i) => {
+              doc.fillColor('#222222').fontSize(7.5).font('Helvetica')
+                 .text(v, L + cx[i] + 3, y + 3, { width: cw[i], lineBreak: false });
+            });
+            y += rowH;
+          });
+          doc.moveTo(L, y).lineTo(L + W, y).lineWidth(0.3).stroke('#dddddd');
+          y += 6;
+        }
+
+        // ── CLINICAL REVIEW / SIGN-OFF ───────────────────────────────────
+        y += 8;
+        sectionHead('CLINICAL REVIEW & SIGN-OFF');
+
+        if (reviewed) {
+          const rev = diagnosisResult.manualReview;
+          const confirmedStatus = rev.overriddenStatus || diagnosisResult.status;
+
+          checkY(30);
+          doc.rect(L, y, W, 22).fill('#d4edda');
+          doc.rect(L, y, W, 22).stroke('#28a745');
+          doc.fillColor('#155724').fontSize(10).font('Helvetica-Bold')
+             .text(`CONFIRMED BY CLINICIAN  —  Final Result: ${confirmedStatus}`, L + 8, y + 6, { width: W - 16, lineBreak: false });
+          y += 28;
+
+          kv('Reviewed By',         rev.signedByName,                                                                  L, 140, W);
+          kv('Reviewed At',         rev.reviewedAt ? new Date(rev.reviewedAt).toLocaleString() : null,                 L, 140, W);
+          kv('Final Status',        confirmedStatus,                                                                    L, 140, W);
+          kv('Severity',            (rev.overriddenSeverity || diagnosisResult.severity?.level || 'N/A').toUpperCase(), L, 140, W);
+          kv('Reviewer Confidence', (rev.reviewerConfidence || 'N/A').toUpperCase(),                                   L, 140, W);
+
+          // Reviewed counts (shown when clinician edited detections)
+          if (rev.detectionsEdited) {
+            y += 4;
+            doc.fillColor('#1e3a5f').fontSize(9).font('Helvetica-Bold')
+               .text('Clinician-Reviewed Counts', L, y);
+            y += 13;
+            kv('Parasites (reviewed)',  rev.parasiteCountReviewed ?? 'N/A',         L, 160, W);
+            kv('WBCs (reviewed)',       rev.wbcCountReviewed ?? 'N/A',              L, 160, W);
+            kv('P/WBC ratio (reviewed)', rev.parasiteWbcRatioReviewed != null
+              ? rev.parasiteWbcRatioReviewed.toFixed(4) : 'N/A',                   L, 160, W);
+
+            const densityLabel = rev.parasiteDensityIsPreliminaryReviewed
+              ? `${(rev.parasiteDensityPerUlReviewed ?? 0).toLocaleString()} p/µL  [${rev.parasiteDensityFlagReviewed || 'preliminary'}]`
+              : `${(rev.parasiteDensityPerUlReviewed ?? 0).toLocaleString()} p/µL`;
+            kv('Parasitaemia (reviewed)', densityLabel, L, 160, W);
+
+            if (rev.parasiteDensityNoteReviewed) {
+              const noteH = doc.heightOfString(rev.parasiteDensityNoteReviewed, { width: W - 20, fontSize: 8 });
+              checkY(noteH + 14);
+              doc.rect(L, y, W, noteH + 10).fill('#fff8e1');
+              doc.fillColor('#7d5a00').fontSize(8).font('Helvetica')
+                 .text(rev.parasiteDensityNoteReviewed, L + 6, y + 5, { width: W - 12, lineBreak: true });
+              y += noteH + 14;
+            }
+          }
+
+          if (rev.reviewNotes) {
+            const notesH = doc.heightOfString(rev.reviewNotes, { width: W - 20, fontSize: 9 });
+            checkY(notesH + 24);
+            y += 4;
+            doc.fillColor('#555555').fontSize(8).font('Helvetica')
+               .text('Clinical Notes:', L, y, { lineBreak: false });
+            y += 13;
+            doc.fillColor('#111111').fontSize(9).font('Helvetica')
+               .text(rev.reviewNotes, L + 12, y, { width: W - 20, lineBreak: true });
+            y += notesH + 6;
+          }
+
+          checkY(28);
+          y += 4;
+          doc.rect(L, y, W, 20).stroke('#aaaaaa');
+          doc.fillColor('#555555').fontSize(7.5).font('Helvetica')
+             .text(
+               `Verification Code: ${rev.verificationCode || 'N/A'}   |   This code uniquely identifies this sign-off and can be used for audit purposes.`,
+               L + 6, y + 6, { width: W - 12, lineBreak: false }
+             );
+          y += 24;
+
+        } else {
+          checkY(85);
+          doc.fillColor('#888888').fontSize(9).font('Helvetica')
+             .text(
+               'This report has NOT yet been reviewed by a clinician. It must be signed off before clinical use.',
+               L, y, { width: W, lineBreak: false }
+             );
+          y += 28;
+
+          doc.moveTo(L, y).lineTo(L + 200, y).lineWidth(0.7).stroke('#333333');
+          doc.moveTo(L + 240, y).lineTo(L + 440, y).stroke('#333333');
+          y += 5;
+          doc.fillColor('#333333').fontSize(8).font('Helvetica')
+             .text('Clinician Signature', L, y, { lineBreak: false });
+          doc.text('Date & Time', L + 240, y, { lineBreak: false });
+          y += 22;
+          doc.moveTo(L, y).lineTo(L + 300, y).lineWidth(0.7).stroke('#333333');
+          y += 5;
+          doc.fillColor('#333333').fontSize(8).font('Helvetica')
+             .text('Print Name & Professional Designation', L, y, { lineBreak: false });
+        }
+
+        // ── FOOTER: stamp every buffered page (safe — bottom margin is 0) ─
+        const totalPages = doc.bufferedPageRange().count;
+        for (let i = 0; i < totalPages; i++) {
+          doc.switchToPage(i);
+          const fY = doc.page.height - 52;  // well within page.height (bottom margin = 0)
+          doc.moveTo(L, fY).lineTo(L + W, fY).lineWidth(0.4).stroke('#cccccc');
+          doc.fillColor('#999999').fontSize(7).font('Helvetica')
+             .text(
+               'AI-assisted decision support system — not a clinical diagnosis. Results must be interpreted by a qualified healthcare professional.',
+               L, fY + 5, { width: W, align: 'center', lineBreak: false }
+             );
+          doc.text(
+            `Report ID: ${test.testId}  |  ${reportDate}  |  Page ${i + 1} of ${totalPages}`,
+            L, fY + 17, { width: W, align: 'center', lineBreak: false }
+          );
+        }
+
+        doc.flushPages();
         doc.end();
 
       } catch (error) {

@@ -27,6 +27,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const getNavigationItems = () => {
     const baseItems = [
       { name: 'Dashboard', icon: Home, path: '/dashboard' },
+      { name: 'Worklist', icon: ClipboardList, path: '/worklist' },
       { name: 'Upload Sample', icon: Upload, path: '/upload' },
       { name: 'Test Results', icon: Eye, path: '/results' },
     ];
@@ -49,7 +50,6 @@ const Sidebar = ({ isOpen, onClose }) => {
         { name: 'Quality Control', icon: Shield, path: '/quality' },
       ],
       technician: [
-        { name: 'My Tests', icon: ClipboardList, path: '/my-tests' },
         { name: 'Patient Management', icon: Users, path: '/patients' },
       ]
     };

@@ -351,6 +351,7 @@ import QuickActions, { QuickActionsSkeleton } from '../components/dashboard/Quic
 import TestSummary, { TestSummarySkeleton } from '../components/dashboard/TestSummary';
 import CriticalAlerts, { CriticalAlertsSkeleton } from '../components/dashboard/CriticalAlerts';
 import AnalyticsSection from '../components/dashboard/AnalyticsSection';
+import TATWidget from '../components/dashboard/TATWidget';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Toast from '../components/common/Toast';
 
@@ -567,6 +568,9 @@ const Dashboard = () => {
                   }}
                 />
               )}
+
+              {/* TAT / SLA Widget */}
+              <TATWidget />
             </div>
           </div>
 
